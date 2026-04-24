@@ -1,0 +1,90 @@
+{
+  "name": "notebook-sidepane-preview",
+  "displayName": "Notebook Preview",
+  "description": "Live notebook preview that opens in a side editor tab with incremental updates.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "notebookPreview.openSidepanePreview",
+        "category": "Notebook Preview",
+        "title": "Notebook Preview: Open Preview Beside"
+      },
+      {
+        "command": "notebookPreview.toggleFollowActiveCell",
+        "category": "Notebook Preview",
+        "title": "Notebook Preview: Toggle Follow Active Cell"
+      },
+      {
+        "command": "notebookPreview.refreshPreview",
+        "category": "Notebook Preview",
+        "title": "Notebook Preview: Refresh Preview"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "notebookPreview.openSidepanePreview"
+        },
+        {
+          "command": "notebookPreview.toggleFollowActiveCell"
+        },
+        {
+          "command": "notebookPreview.refreshPreview"
+        }
+      ],
+      "notebook/title": [
+        {
+          "command": "notebookPreview.openSidepanePreview",
+          "group": "navigation@10"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Notebook Preview",
+      "properties": {
+        "notebookPreview.followActiveCell": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-scroll the preview to the active notebook cell."
+        },
+        "notebookPreview.math.renderer": {
+          "type": "string",
+          "enum": [
+            "katex",
+            "none"
+          ],
+          "default": "katex",
+          "description": "Math renderer used in preview markdown cells."
+        },
+        "notebookPreview.math.katexTrust": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable trusted KaTeX rendering features. Keep disabled unless required."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "lint": "echo \"Add linter setup\""
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.6.3"
+  }
+}
