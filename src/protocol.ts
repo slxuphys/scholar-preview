@@ -6,7 +6,6 @@ export interface CellSnapshot {
   kind: CellKind;
   language: string;
   source: string;
-  renderedHtml: string;
   outputs: OutputSnapshot[];
 }
 

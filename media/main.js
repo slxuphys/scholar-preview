@@ -65,6 +65,7 @@ function applyFullSync(snapshot) {
 
   updateEmptyState();
   updateActiveVisual();
+  renumberEquations();
   vscode.postMessage({ type: "ack", docVersion: state.docVersion });
 }
 
@@ -95,6 +96,7 @@ function applyPatch(ops, docVersion) {
 
   state.docVersion = docVersion;
   updateEmptyState();
+  renumberEquations();
   vscode.postMessage({ type: "ack", docVersion: state.docVersion });
 }
 
@@ -221,7 +223,7 @@ function patchCellNode(node, previous, nextCell) {
 
   node.className = getCellClassName(nextCell);
 
-  if (previous.source !== nextCell.source || previous.renderedHtml !== nextCell.renderedHtml) {
+  if (previous.source !== nextCell.source) {
     const body = node.querySelector(".cell-body");
     body.innerHTML = renderCellBody(nextCell);
   }
@@ -243,7 +245,7 @@ function renderCellBody(cell) {
 
   const escaped = escapeHtml(stripPreviewDirectiveLines(cell.source || ""));
   const withBreaks = escaped.replace(/\n/g, "<br />");
-  return `<pre class="code-source">${renderMathFallback(withBreaks)}</pre>`;
+  return `<pre class="code-source">${withBreaks}</pre>`;
 }
 
 function stripPreviewDirectiveLines(source) {
@@ -286,8 +288,76 @@ function getEchoDirective(source) {
   return undefined;
 }
 
+/**
+ * Extract math tokens from raw source BEFORE any markdown or HTML processing.
+ * Returns tokenized string plus arrays of the raw LaTeX for each token.
+ */
+function extractMathTokens(source) {
+  const displayMaths = [];
+  const inlineMaths = [];
+
+  // Replace $$...$$ first (display math, may span lines)
+  let tokenized = source.replace(/\$\$([\s\S]+?)\$\$/g, (_match, math) => {
+    const idx = displayMaths.length;
+    displayMaths.push(math);
+    return `KATEX_DISPLAY_${idx}`;
+  });
+
+  // Replace $...$ for inline math (no newlines inside)
+  tokenized = tokenized.replace(/\$([^$\n]+?)\$/g, (_match, math) => {
+    const idx = inlineMaths.length;
+    inlineMaths.push(math);
+    return `KATEX_INLINE_${idx}`;
+  });
+
+  return { tokenized, displayMaths, inlineMaths };
+}
+
+/**
+ * Replace math tokens in the already-built HTML string with KaTeX-rendered HTML.
+ * Display math gets a numbered wrapper; inline math is rendered inline.
+ */
+function restoreMathTokens(html, displayMaths, inlineMaths) {
+  let out = html.replace(/KATEX_DISPLAY_(\d+)/g, (_match, idxStr) => {
+    const math = displayMaths[Number(idxStr)];
+    if (math === undefined) { return _match; }
+    try {
+      // eslint-disable-next-line no-undef
+      const rendered = katex.renderToString(math, { displayMode: true, throwOnError: false });
+      return `<div class="katex-display-eq"><div class="katex-display-content">${rendered}</div><span class="eq-number"></span></div>`;
+    } catch (e) {
+      return `<div class="math-block-error">$$${escapeHtml(math)}$$</div>`;
+    }
+  });
+
+  out = out.replace(/KATEX_INLINE_(\d+)/g, (_match, idxStr) => {
+    const math = inlineMaths[Number(idxStr)];
+    if (math === undefined) { return _match; }
+    try {
+      // eslint-disable-next-line no-undef
+      return katex.renderToString(math, { displayMode: false, throwOnError: false });
+    } catch (e) {
+      return `<span class="math-inline-error">$${escapeHtml(math)}$</span>`;
+    }
+  });
+
+  return out;
+}
+
+/**
+ * Walk all display-math wrappers in DOM order and assign sequential equation numbers.
+ * Called after any DOM update so numbers are always consistent across cells.
+ */
+function renumberEquations() {
+  let n = 1;
+  for (const el of document.querySelectorAll(".katex-display-eq .eq-number")) {
+    el.textContent = `(${n++})`;
+  }
+}
+
 function renderMarkdownCell(source) {
-  const lines = source.split(/\r?\n/);
+  const { tokenized, displayMaths, inlineMaths } = extractMathTokens(source);
+  const lines = tokenized.split(/\r?\n/);
   const blocks = [];
   let paragraph = [];
   let listType = null;
@@ -300,7 +370,13 @@ function renderMarkdownCell(source) {
       return;
     }
 
-    blocks.push(`<p>${renderInlineMarkdown(paragraph.join(" "))}</p>`);
+    const text = paragraph.join(" ").trim();
+    // A paragraph that is only a display-math token should not be wrapped in <p>
+    if (/^KATEX_DISPLAY_\d+$/.test(text)) {
+      blocks.push(text);
+    } else {
+      blocks.push(`<p>${renderInlineMarkdown(text)}</p>`);
+    }
     paragraph = [];
   };
 
@@ -403,7 +479,8 @@ function renderMarkdownCell(source) {
   flushList();
   flushCodeFence();
 
-  return `<div class="markdown-content">${renderMathFallback(blocks.join(""))}</div>`;
+  const rawHtml = blocks.join("");
+  return `<div class="markdown-content">${restoreMathTokens(rawHtml, displayMaths, inlineMaths)}</div>`;
 }
 
 function renderInlineMarkdown(text) {
@@ -425,13 +502,6 @@ function sanitizeHref(target) {
   }
 
   return escapeHtml(trimmed);
-}
-
-function renderMathFallback(html) {
-  // Placeholder for KaTeX integration. Keeps math segments visually distinct for now.
-  let out = html.replace(/\$\$([\s\S]+?)\$\$/g, '<div class="math-block">$$$1$$</div>');
-  out = out.replace(/\$([^$\n]+?)\$/g, '<span class="math-inline">$$1$</span>');
-  return out;
 }
 
 function renderOutputs(outputs) {

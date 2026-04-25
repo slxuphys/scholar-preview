@@ -180,6 +180,41 @@ main {
   overflow-x: auto;
 }
 
+/* KaTeX display equation with right-aligned number */
+.katex-display-eq {
+  display: flex;
+  align-items: center;
+  margin: 1em 0;
+}
+
+.katex-display-content {
+  flex: 1;
+  overflow-x: auto;
+}
+
+.eq-number {
+  padding-left: 1.5em;
+  color: var(--muted);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.95em;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.math-block-error {
+  margin: 8px 0;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #d16969;
+  background: #fff5f5;
+  overflow-x: auto;
+  color: #d16969;
+}
+
+.math-inline-error {
+  color: #d16969;
+}
+
 .markdown-content {
   color: var(--fg);
   font-size: 16px;

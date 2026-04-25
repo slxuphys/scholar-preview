@@ -56,7 +56,7 @@ export class NotebookPreviewViewProvider {
     });
   }
 
-  async open(): Promise<void> {
+  open(): void {
     if (this.panel) {
       this.panel.reveal(vscode.ViewColumn.Beside, true);
       this.refresh();
@@ -88,17 +88,6 @@ export class NotebookPreviewViewProvider {
     });
 
     this.refresh();
-  }
-
-  private ensurePanel(): vscode.WebviewPanel | undefined {
-    return this.panel;
-  }
-
-  private configurePanel(webview: vscode.Webview): void {
-    webview.options = {
-      enableScripts: true,
-      localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "media")]
-    };
   }
 
   refresh(): void {
@@ -207,14 +196,17 @@ export class NotebookPreviewViewProvider {
   private getHtml(webview: vscode.Webview): string {
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "main.js"));
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "styles.css"));
+    const katexScriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "katex.min.js"));
+    const katexStyleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "katex.min.css"));
     const nonce = getNonce();
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="${katexStyleUri}" />
   <link rel="stylesheet" href="${styleUri}" />
   <title>Notebook Preview</title>
 </head>
@@ -228,6 +220,7 @@ export class NotebookPreviewViewProvider {
     <section id="emptyState" class="empty-state">Open a notebook to preview cells.</section>
     <section id="cellList" class="cell-list" aria-label="Notebook preview cells"></section>
   </main>
+  <script nonce="${nonce}" src="${katexScriptUri}"></script>
   <script nonce="${nonce}">
     window.__NOTEBOOK_PREVIEW_CONFIG__ = {
       followActiveCell: ${this.followActiveCell ? "true" : "false"}
@@ -253,7 +246,6 @@ function buildSnapshot(document: vscode.NotebookDocument, prevVersion: number): 
       kind: cell.kind === vscode.NotebookCellKind.Markup ? "markdown" : "code",
       language: cell.document.languageId,
       source: cell.document.getText(),
-      renderedHtml: escapeHtml(cell.document.getText()),
       outputs: toOutputSnapshots(cell.outputs)
     };
   });
