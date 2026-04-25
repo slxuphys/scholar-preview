@@ -67,7 +67,7 @@ function applyFullSync(snapshot, notebookDir) {
 
   updateEmptyState();
   updateActiveVisual();
-  renumberEquations();
+  renumberCrossRefs();
   vscode.postMessage({ type: "ack", docVersion: state.docVersion });
 }
 
@@ -101,7 +101,7 @@ function applyPatch(ops, docVersion) {
   state.docVersion = docVersion;
   updateEmptyState();
   if (ops.some((op) => op.type !== "setActiveCell")) {
-    renumberEquations();
+    renumberCrossRefs();
   }
   vscode.postMessage({ type: "ack", docVersion: state.docVersion });
 }
@@ -352,28 +352,41 @@ function restoreMathTokens(html, displayMaths, inlineMaths) {
 }
 
 /**
- * Walk all display-math wrappers in DOM order, assign sequential equation numbers,
- * build a label→number map, then resolve all @eq-label reference placeholders.
+ * Walk all display-math wrappers and figure blocks in DOM order, assign sequential
+ * numbers, build label maps, then resolve all cross-reference placeholders.
  */
-function renumberEquations() {
-  const labelMap = new Map();
-  let n = 1;
+function renumberCrossRefs() {
+  // --- Equations ---
+  const eqLabelMap = new Map();
+  let eqN = 1;
   for (const el of document.querySelectorAll(".katex-display-eq")) {
     const numEl = el.querySelector(".eq-number");
-    if (numEl) {
-      numEl.textContent = `(${n})`;
-    }
+    if (numEl) { numEl.textContent = `(${eqN})`; }
     const label = el.dataset.eqLabel;
-    if (label) {
-      labelMap.set(label, n);
-    }
-    n++;
+    if (label) { eqLabelMap.set(label, eqN); }
+    eqN++;
   }
-
   for (const ref of document.querySelectorAll(".eq-ref[data-eq-ref]")) {
     const label = ref.dataset.eqRef;
-    const num = labelMap.get(label);
+    const num = eqLabelMap.get(label);
     ref.textContent = num !== undefined ? `Eq. (${num})` : "Eq. (??)";
+    ref.href = num !== undefined ? `#${label}` : "";
+  }
+
+  // --- Figures ---
+  const figLabelMap = new Map();
+  let figN = 1;
+  for (const el of document.querySelectorAll(".md-figure")) {
+    const numEl = el.querySelector(".fig-number");
+    if (numEl) { numEl.textContent = String(figN); }
+    const label = el.dataset.figLabel;
+    if (label) { figLabelMap.set(label, figN); }
+    figN++;
+  }
+  for (const ref of document.querySelectorAll(".fig-ref[data-fig-ref]")) {
+    const label = ref.dataset.figRef;
+    const num = figLabelMap.get(label);
+    ref.textContent = num !== undefined ? `Fig. ${num}` : "Fig. ??";
     ref.href = num !== undefined ? `#${label}` : "";
   }
 }
@@ -495,6 +508,27 @@ function renderMarkdownCell(source) {
       continue;
     }
 
+    // Block figure: a line that is only an image, optionally with a label
+    const blockFig = /^!\[([^\]]*)\]\(([^)]+?)\)(?:\{#(fig-[a-z0-9_-]+)\})?$/.exec(line.trim());
+    if (blockFig) {
+      flushParagraph();
+      flushList();
+      const alt = blockFig[1];
+      const rawSrc = blockFig[2];
+      const figLabel = blockFig[3] || null;
+      const resolvedSrc = resolveImageSrc(escapeHtml(rawSrc));
+      if (resolvedSrc) {
+        const idAttr = figLabel ? ` id="${figLabel}" data-fig-label="${figLabel}"` : "";
+        const caption = alt
+          ? `<figcaption><strong>Figure <span class="fig-number"></span>.</strong> ${escapeHtml(alt)}</figcaption>`
+          : "";
+        blocks.push(`<figure class="md-figure" role="group"${idAttr}><img class="md-image" src="${resolvedSrc}" alt="${escapeHtml(alt)}" />${caption}</figure>`);
+      } else {
+        blocks.push(`<p>${escapeHtml(`![${alt}](${rawSrc})`)}</p>`);
+      }
+      continue;
+    }
+
     paragraph.push(line.trim());
   }
 
@@ -526,6 +560,10 @@ function renderInlineMarkdown(text) {
   // Equation cross-references: @eq-label → placeholder resolved after renumbering
   html = html.replace(/@(eq-[a-z0-9_-]+)/g, (_match, label) => {
     return `<a class="eq-ref" data-eq-ref="${label}" href="#${label}">Eq. (??)</a>`;
+  });
+  // Figure cross-references: @fig-label → placeholder resolved after renumbering
+  html = html.replace(/@(fig-[a-z0-9_-]+)/g, (_match, label) => {
+    return `<a class="fig-ref" data-fig-ref="${label}" href="#${label}">Fig. ??</a>`;
   });
   return html;
 }

@@ -172,6 +172,35 @@ main {
   border-radius: 6px;
 }
 
+.md-figure {
+  margin: 1.2em 0;
+  text-align: center;
+}
+
+.md-figure .md-image {
+  display: block;
+  margin: 0 auto;
+  border-radius: 6px;
+}
+
+figcaption {
+  margin-top: 0.45em;
+  font-size: 0.88em;
+  color: var(--muted);
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+}
+
+.fig-ref {
+  color: var(--accent);
+  font-style: normal;
+  text-decoration: none;
+}
+
+.fig-ref:hover {
+  text-decoration: underline;
+}
+
 .math-inline {
   padding: 1px 4px;
   border-radius: 4px;
