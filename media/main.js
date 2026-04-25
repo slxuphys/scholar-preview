@@ -187,7 +187,7 @@ function updateSingleCell(id, nextCell) {
 
 function createCellNode(cell) {
   const article = document.createElement("article");
-  article.className = `cell cell-${cell.kind}`;
+  article.className = getCellClassName(cell);
   article.dataset.cellId = cell.id;
 
   const header = document.createElement("header");
@@ -217,8 +217,9 @@ function patchCellNode(node, previous, nextCell) {
   if (previous.kind !== nextCell.kind || previous.language !== nextCell.language) {
     const header = node.querySelector(".cell-header");
     header.textContent = `${nextCell.kind.toUpperCase()} - ${nextCell.language}`;
-    node.className = `cell cell-${nextCell.kind}`;
   }
+
+  node.className = getCellClassName(nextCell);
 
   if (previous.source !== nextCell.source || previous.renderedHtml !== nextCell.renderedHtml) {
     const body = node.querySelector(".cell-body");
@@ -236,9 +237,53 @@ function renderCellBody(cell) {
     return renderMarkdownCell(cell.source || "");
   }
 
-  const escaped = escapeHtml(cell.source || "");
+  if (!shouldRenderCodeSource(cell)) {
+    return "";
+  }
+
+  const escaped = escapeHtml(stripPreviewDirectiveLines(cell.source || ""));
   const withBreaks = escaped.replace(/\n/g, "<br />");
   return `<pre class="code-source">${renderMathFallback(withBreaks)}</pre>`;
+}
+
+function stripPreviewDirectiveLines(source) {
+  return String(source || "")
+    .split(/\r?\n/)
+    .filter((line) => !line.trimStart().startsWith("#|"))
+    .join("\n");
+}
+
+function getCellClassName(cell) {
+  const classes = ["cell", `cell-${cell.kind}`];
+  if (cell.kind === "code" && !shouldRenderCodeSource(cell)) {
+    classes.push("cell-code-hidden-source");
+  }
+  return classes.join(" ");
+}
+
+function shouldRenderCodeSource(cell) {
+  if (cell.kind !== "code") {
+    return false;
+  }
+
+  // Default behavior: source is hidden unless explicitly enabled by directive.
+  const echoDirective = getEchoDirective(cell.source || "");
+  return echoDirective === "on";
+}
+
+function getEchoDirective(source) {
+  const lines = String(source || "").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed === "") {
+      continue;
+    }
+
+    const match = /^#\|\s*echo\s*:\s*(on|off)\s*$/i.exec(trimmed);
+    return match ? match[1].toLowerCase() : undefined;
+  }
+
+  return undefined;
 }
 
 function renderMarkdownCell(source) {

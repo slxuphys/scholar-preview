@@ -105,6 +105,15 @@ main {
   display: none;
 }
 
+.cell-code-hidden-source .cell-header,
+.cell-code-hidden-source .cell-body {
+  display: none;
+}
+
+.cell-code-hidden-source .cell-outputs {
+  padding-top: 6px;
+}
+
 .cell-body,
 .cell-outputs {
   padding: 10px;
