@@ -177,6 +177,11 @@ main {
   text-align: center;
 }
 
+.md-figure-decorative {
+  margin: 1.2em 0;
+  text-align: center;
+}
+
 .md-figure .md-image {
   display: block;
   margin: 0 auto;

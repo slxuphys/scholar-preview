@@ -540,11 +540,13 @@ function renderMarkdownCell(source) {
       const figLabel = blockFig[3] || null;
       const resolvedSrc = resolveImageSrc(escapeHtml(rawSrc));
       if (resolvedSrc) {
-        const idAttr = figLabel ? ` id="${figLabel}" data-fig-label="${figLabel}"` : "";
-        const caption = alt
-          ? `<figcaption><strong>Figure <span class="fig-number"></span>.</strong> ${escapeHtml(alt)}</figcaption>`
-          : "";
-        blocks.push(`<figure class="md-figure" role="group"${idAttr}><img class="md-image" src="${resolvedSrc}" alt="${escapeHtml(alt)}" />${caption}</figure>`);
+        if (alt) {
+          const idAttr = figLabel ? ` id="${figLabel}" data-fig-label="${figLabel}"` : "";
+          const captionHtml = `<figcaption><strong>Figure <span class="fig-number"></span>.</strong> ${escapeHtml(alt)}</figcaption>`;
+          blocks.push(`<figure class="md-figure" role="group"${idAttr}><img class="md-image" src="${resolvedSrc}" alt="${escapeHtml(alt)}" />${captionHtml}</figure>`);
+        } else {
+          blocks.push(`<figure class="md-figure-decorative" role="presentation"><img class="md-image" src="${resolvedSrc}" alt="" /></figure>`);
+        }
       } else {
         blocks.push(`<p>${escapeHtml(`![${alt}](${rawSrc})`)}</p>`);
       }
