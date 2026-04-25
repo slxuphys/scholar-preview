@@ -638,7 +638,18 @@ function renderOutputs(outputs, figDirectives) {
 
   const { cap, label } = figDirectives || {};
 
+  const hasImage = outputs.some((o) => o.dataUri);
+
   return outputs
+    .filter((output) => {
+      // Suppress text/plain repr (e.g. "<Figure size 640x480 with 1 Axes>")
+      // when an image output is already present in the same cell.
+      // stdout (print statements) are kept regardless.
+      if (hasImage && output.mime === "text/plain" && !output.dataUri) {
+        return false;
+      }
+      return true;
+    })
     .map((output) => {
       if (output.dataUri) {
         const imgHtml = `<img class="md-image" src="${output.dataUri}" alt="${cap ? escapeHtml(cap) : "Notebook output"}" />`;

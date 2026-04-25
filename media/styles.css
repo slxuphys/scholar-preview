@@ -110,8 +110,24 @@ main {
   display: none;
 }
 
+.cell-code-hidden-source {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
 .cell-code-hidden-source .cell-outputs {
-  padding-top: 6px;
+  padding-top: 0;
+}
+
+.cell-code-hidden-source .output-block {
+  border: none;
+  border-radius: 0;
+  margin-bottom: 0;
+}
+
+.cell-code-hidden-source .output-mime {
+  display: none;
 }
 
 .cell-body,
@@ -190,10 +206,10 @@ main {
 
 figcaption {
   margin-top: 0.45em;
-  font-size: 0.88em;
+  font-size: 13px;
   color: var(--muted);
   font-family: Georgia, "Times New Roman", serif;
-  font-style: italic;
+  font-style: normal;
 }
 
 .fig-ref {
