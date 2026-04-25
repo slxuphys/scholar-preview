@@ -85,10 +85,12 @@ function applyPatch(ops, docVersion) {
       case "recordCellSnapshot":
         updateSingleCell(op.id, op.cell);
         break;
-      case "setActiveCell":
+      case "setActiveCell": {
+        const prevId = state.activeCellId;
         state.activeCellId = op.id;
-        updateActiveVisual();
+        updateActiveVisual(prevId);
         break;
+      }
       default:
         break;
     }
@@ -96,7 +98,9 @@ function applyPatch(ops, docVersion) {
 
   state.docVersion = docVersion;
   updateEmptyState();
-  renumberEquations();
+  if (ops.some((op) => op.type !== "setActiveCell")) {
+    renumberEquations();
+  }
   vscode.postMessage({ type: "ack", docVersion: state.docVersion });
 }
 
@@ -244,8 +248,7 @@ function renderCellBody(cell) {
   }
 
   const escaped = escapeHtml(stripPreviewDirectiveLines(cell.source || ""));
-  const withBreaks = escaped.replace(/\n/g, "<br />");
-  return `<pre class="code-source">${withBreaks}</pre>`;
+  return `<pre class="code-source">${escaped}</pre>`;
 }
 
 function stripPreviewDirectiveLines(source) {
@@ -296,10 +299,11 @@ function extractMathTokens(source) {
   const displayMaths = [];
   const inlineMaths = [];
 
-  // Replace $$...$$ first (display math, may span lines)
-  let tokenized = source.replace(/\$\$([\s\S]+?)\$\$/g, (_match, math) => {
+  // Replace $$...$$ first (display math, may span lines).
+  // Optionally capture a Quarto-style label tag: $$ ... $$ {#eq-label}
+  let tokenized = source.replace(/\$\$([\s\S]+?)\$\$[ \t]*(?:\{#(eq-[a-z0-9_-]+)\})?/g, (_match, math, label) => {
     const idx = displayMaths.length;
-    displayMaths.push(math);
+    displayMaths.push({ math, label: label || null });
     return `KATEX_DISPLAY_${idx}`;
   });
 
@@ -319,14 +323,15 @@ function extractMathTokens(source) {
  */
 function restoreMathTokens(html, displayMaths, inlineMaths) {
   let out = html.replace(/KATEX_DISPLAY_(\d+)/g, (_match, idxStr) => {
-    const math = displayMaths[Number(idxStr)];
-    if (math === undefined) { return _match; }
+    const entry = displayMaths[Number(idxStr)];
+    if (!entry) { return _match; }
     try {
       // eslint-disable-next-line no-undef
-      const rendered = katex.renderToString(math, { displayMode: true, throwOnError: false });
-      return `<div class="katex-display-eq"><div class="katex-display-content">${rendered}</div><span class="eq-number"></span></div>`;
+      const rendered = katex.renderToString(entry.math, { displayMode: true, throwOnError: false });
+      const labelAttr = entry.label ? ` id="${entry.label}" data-eq-label="${entry.label}"` : "";
+      return `<div class="katex-display-eq"${labelAttr}><div class="katex-display-content">${rendered}</div><span class="eq-number"></span></div>`;
     } catch (e) {
-      return `<div class="math-block-error">$$${escapeHtml(math)}$$</div>`;
+      return `<div class="math-block-error">$$${escapeHtml(entry.math)}$$</div>`;
     }
   });
 
@@ -345,13 +350,29 @@ function restoreMathTokens(html, displayMaths, inlineMaths) {
 }
 
 /**
- * Walk all display-math wrappers in DOM order and assign sequential equation numbers.
- * Called after any DOM update so numbers are always consistent across cells.
+ * Walk all display-math wrappers in DOM order, assign sequential equation numbers,
+ * build a label→number map, then resolve all @eq-label reference placeholders.
  */
 function renumberEquations() {
+  const labelMap = new Map();
   let n = 1;
-  for (const el of document.querySelectorAll(".katex-display-eq .eq-number")) {
-    el.textContent = `(${n++})`;
+  for (const el of document.querySelectorAll(".katex-display-eq")) {
+    const numEl = el.querySelector(".eq-number");
+    if (numEl) {
+      numEl.textContent = `(${n})`;
+    }
+    const label = el.dataset.eqLabel;
+    if (label) {
+      labelMap.set(label, n);
+    }
+    n++;
+  }
+
+  for (const ref of document.querySelectorAll(".eq-ref[data-eq-ref]")) {
+    const label = ref.dataset.eqRef;
+    const num = labelMap.get(label);
+    ref.textContent = num !== undefined ? `Eq. (${num})` : "Eq. (??)";
+    ref.href = num !== undefined ? `#${label}` : "";
   }
 }
 
@@ -492,6 +513,10 @@ function renderInlineMarkdown(text) {
     const safeTarget = sanitizeHref(target);
     return `<a href="${safeTarget}" target="_blank" rel="noreferrer">${label}</a>`;
   });
+  // Equation cross-references: @eq-label → placeholder resolved after renumbering
+  html = html.replace(/@(eq-[a-z0-9_-]+)/g, (_match, label) => {
+    return `<a class="eq-ref" data-eq-ref="${label}" href="#${label}">Eq. (??)</a>`;
+  });
   return html;
 }
 
@@ -532,7 +557,22 @@ function updateEmptyState() {
   cellList.style.display = empty ? "none" : "grid";
 }
 
-function updateActiveVisual() {
+function updateActiveVisual(previousActiveCellId) {
+  if (previousActiveCellId !== undefined) {
+    // Fast path: only the two changing nodes need updating.
+    const oldNode = state.nodeById.get(previousActiveCellId);
+    if (oldNode) { oldNode.classList.remove("active"); }
+    const newNode = state.activeCellId !== undefined ? state.nodeById.get(state.activeCellId) : undefined;
+    if (newNode) {
+      newNode.classList.add("active");
+      if (window.__NOTEBOOK_PREVIEW_CONFIG__?.followActiveCell) {
+        newNode.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    }
+    return;
+  }
+
+  // Full scan after fullSync or major patch.
   for (const [id, node] of state.nodeById.entries()) {
     if (id === state.activeCellId) {
       node.classList.add("active");

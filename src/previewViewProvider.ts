@@ -52,7 +52,7 @@ export class NotebookPreviewViewProvider {
         return;
       }
 
-      this.pushIncrementalUpdate(editor.notebook);
+      this.pushIncrementalUpdate(event.notebook);
     });
   }
 
@@ -236,13 +236,12 @@ function buildSnapshot(document: vscode.NotebookDocument, prevVersion: number): 
   const cells: Record<string, CellSnapshot> = {};
   const order: string[] = [];
 
-  document.getCells().forEach((cell, index) => {
+  document.getCells().forEach((cell) => {
     const id = cell.document.uri.toString();
     order.push(id);
 
     cells[id] = {
       id,
-      index,
       kind: cell.kind === vscode.NotebookCellKind.Markup ? "markdown" : "code",
       language: cell.document.languageId,
       source: cell.document.getText(),

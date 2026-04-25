@@ -2,7 +2,6 @@ export type CellKind = "markdown" | "code";
 
 export interface CellSnapshot {
   id: string;
-  index: number;
   kind: CellKind;
   language: string;
   source: string;

@@ -215,6 +215,17 @@ main {
   color: #d16969;
 }
 
+.eq-ref {
+  color: var(--accent);
+  font-style: normal;
+  font-family: Georgia, "Times New Roman", serif;
+  text-decoration: none;
+}
+
+.eq-ref:hover {
+  text-decoration: underline;
+}
+
 .markdown-content {
   color: var(--fg);
   font-size: 16px;
