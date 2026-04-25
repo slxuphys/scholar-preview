@@ -165,6 +165,13 @@ main {
   border-radius: 8px;
 }
 
+.md-image {
+  max-width: 100%;
+  display: block;
+  margin: 0.5em 0;
+  border-radius: 6px;
+}
+
 .math-inline {
   padding: 1px 4px;
   border-radius: 4px;

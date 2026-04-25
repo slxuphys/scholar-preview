@@ -2,10 +2,11 @@
 
 const vscode = acquireVsCodeApi();
 
-/** @type {{ docVersion: number, activeCellId?: string, cellOrder: string[], cellStateById: Record<string, any>, nodeById: Map<string, HTMLElement> }} */
+/** @type {{ docVersion: number, activeCellId?: string, notebookDir: string, cellOrder: string[], cellStateById: Record<string, any>, nodeById: Map<string, HTMLElement> }} */
 const state = {
   docVersion: 0,
   activeCellId: undefined,
+  notebookDir: "",
   cellOrder: [],
   cellStateById: {},
   nodeById: new Map()
@@ -34,7 +35,7 @@ window.addEventListener("message", (event) => {
   }
 
   if (message.type === "fullSync") {
-    applyFullSync(message.snapshot);
+    applyFullSync(message.snapshot, message.notebookDir ?? "");
     return;
   }
 
@@ -48,9 +49,10 @@ window.addEventListener("message", (event) => {
   }
 });
 
-function applyFullSync(snapshot) {
+function applyFullSync(snapshot, notebookDir) {
   state.docVersion = snapshot.docVersion;
   state.activeCellId = snapshot.activeCellId;
+  state.notebookDir = notebookDir;
   state.cellOrder = [...snapshot.cellOrder];
   state.cellStateById = { ...snapshot.cells };
 
@@ -509,6 +511,14 @@ function renderInlineMarkdown(text) {
   html = html.replace(/`([^`]+?)`/g, "<code>$1</code>");
   html = html.replace(/\*\*([^*]+?)\*\*/g, "<strong>$1</strong>");
   html = html.replace(/\*([^*]+?)\*/g, "<em>$1</em>");
+  // Images: ![alt](src) — must come before the link regex
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+?)\)/g, (_match, alt, src) => {
+    const resolvedSrc = resolveImageSrc(src);
+    if (!resolvedSrc) {
+      return escapeHtml(`![${alt}](${src})`);
+    }
+    return `<img class="md-image" src="${resolvedSrc}" alt="${alt}" />`;
+  });
   html = html.replace(/\[([^\]]+?)\]\(([^)]+?)\)/g, (_match, label, target) => {
     const safeTarget = sanitizeHref(target);
     return `<a href="${safeTarget}" target="_blank" rel="noreferrer">${label}</a>`;
@@ -527,6 +537,36 @@ function sanitizeHref(target) {
   }
 
   return escapeHtml(trimmed);
+}
+
+function resolveImageSrc(src) {
+  // src is HTML-escaped; unescape for URL handling
+  const raw = src
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+
+  if (raw.startsWith("javascript:")) {
+    return null;
+  }
+
+  // Absolute URLs (http/https/data) pass through as-is
+  if (/^https?:\/\//i.test(raw) || raw.startsWith("data:")) {
+    return escapeHtml(raw);
+  }
+
+  // Relative path: resolve against the notebook directory
+  if (state.notebookDir) {
+    try {
+      return escapeHtml(new URL(raw, state.notebookDir + "/").href);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
 }
 
 function renderOutputs(outputs) {

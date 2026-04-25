@@ -50,6 +50,7 @@ export type HostToWebviewMessage =
   | {
       type: "fullSync";
       snapshot: NotebookSnapshot;
+      notebookDir: string;
     }
   | {
       type: "patch";

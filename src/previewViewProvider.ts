@@ -73,7 +73,10 @@ export class NotebookPreviewViewProvider {
       {
         enableScripts: true,
         retainContextWhenHidden: true,
-        localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "media")]
+        localResourceRoots: [
+          vscode.Uri.joinPath(this.extensionUri, "media"),
+          ...(vscode.workspace.workspaceFolders?.map((f) => f.uri) ?? [])
+        ]
       }
     );
 
@@ -107,7 +110,12 @@ export class NotebookPreviewViewProvider {
     if (this.panel) {
       this.panel.title = this.getPanelTitle(editor.notebook.uri);
     }
-    this.postMessage({ type: "fullSync", snapshot: this.snapshot });
+    const notebookDir = this.panel
+      ? this.panel.webview.asWebviewUri(
+          vscode.Uri.joinPath(editor.notebook.uri, "..")
+        ).toString()
+      : "";
+    this.postMessage({ type: "fullSync", snapshot: this.snapshot, notebookDir });
   }
 
   toggleFollowActiveCell(): void {
@@ -124,17 +132,20 @@ export class NotebookPreviewViewProvider {
 
   private pushIncrementalUpdate(document: vscode.NotebookDocument): void {
     const nextSnapshot = buildSnapshot(document, this.snapshot?.docVersion ?? 0);
+    const notebookDir = this.panel
+      ? this.panel.webview.asWebviewUri(vscode.Uri.joinPath(document.uri, "..")).toString()
+      : "";
 
     if (!this.snapshot) {
       this.snapshot = nextSnapshot;
-      this.postMessage({ type: "fullSync", snapshot: nextSnapshot });
+      this.postMessage({ type: "fullSync", snapshot: nextSnapshot, notebookDir });
       return;
     }
 
     const patch = computePatch(this.snapshot, nextSnapshot);
     if (!patch) {
       this.snapshot = nextSnapshot;
-      this.postMessage({ type: "fullSync", snapshot: nextSnapshot });
+      this.postMessage({ type: "fullSync", snapshot: nextSnapshot, notebookDir });
       return;
     }
 
@@ -204,7 +215,7 @@ export class NotebookPreviewViewProvider {
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data: https:; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="${katexStyleUri}" />
   <link rel="stylesheet" href="${styleUri}" />
