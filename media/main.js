@@ -208,7 +208,7 @@ function createCellNode(cell) {
 
   const outputs = document.createElement("div");
   outputs.className = "cell-outputs";
-  outputs.innerHTML = renderOutputs(cell.outputs);
+  outputs.innerHTML = renderOutputs(cell.outputs, cell.kind === "code" ? parseFigureDirectives(cell.source) : null);
 
   article.appendChild(header);
   article.appendChild(body);
@@ -232,11 +232,16 @@ function patchCellNode(node, previous, nextCell) {
   if (previous.source !== nextCell.source) {
     const body = node.querySelector(".cell-body");
     body.innerHTML = renderCellBody(nextCell);
+    // Re-render outputs when source changes for code cells: fig directives may have changed
+    if (nextCell.kind === "code") {
+      const outputs = node.querySelector(".cell-outputs");
+      outputs.innerHTML = renderOutputs(nextCell.outputs, parseFigureDirectives(nextCell.source));
+    }
   }
 
   if (JSON.stringify(previous.outputs) !== JSON.stringify(nextCell.outputs)) {
     const outputs = node.querySelector(".cell-outputs");
-    outputs.innerHTML = renderOutputs(nextCell.outputs);
+    outputs.innerHTML = renderOutputs(nextCell.outputs, nextCell.kind === "code" ? parseFigureDirectives(nextCell.source) : null);
   }
 }
 
@@ -251,6 +256,23 @@ function renderCellBody(cell) {
 
   const escaped = escapeHtml(stripPreviewDirectiveLines(cell.source || ""));
   return `<pre class="code-source">${escaped}</pre>`;
+}
+
+/**
+ * Parse Quarto-style figure directives from code cell source.
+ * Recognises '#| fig-cap: ...' and '#| fig-label: fig-*'.
+ */
+function parseFigureDirectives(source) {
+  let cap = null;
+  let label = null;
+  for (const line of String(source || "").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    const capMatch = /^#\|\s*fig-cap\s*:\s*(.+)$/i.exec(trimmed);
+    if (capMatch) { cap = capMatch[1].trim(); continue; }
+    const labelMatch = /^#\|\s*fig-label\s*:\s*(fig-[a-z0-9_-]+)\s*$/i.exec(trimmed);
+    if (labelMatch) { label = labelMatch[1]; }
+  }
+  return { cap, label };
 }
 
 function stripPreviewDirectiveLines(source) {
@@ -607,24 +629,32 @@ function resolveImageSrc(src) {
   return null;
 }
 
-function renderOutputs(outputs) {
+function renderOutputs(outputs, figDirectives) {
   if (!outputs || outputs.length === 0) {
     return "";
   }
 
+  const { cap, label } = figDirectives || {};
+
   return outputs
     .map((output) => {
       if (output.dataUri) {
+        const imgHtml = `<img class="md-image" src="${output.dataUri}" alt="${cap ? escapeHtml(cap) : "Notebook output"}" />`;
+        if (cap) {
+          const idAttr = label ? ` id="${label}" data-fig-label="${label}"` : "";
+          const captionHtml = `<figcaption><strong>Figure <span class="fig-number"></span>.</strong> ${escapeHtml(cap)}</figcaption>`;
+          return `<figure class="md-figure" role="group"${idAttr}>${imgHtml}${captionHtml}</figure>`;
+        }
         return `<img class="cell-image" src="${output.dataUri}" alt="Notebook output" />`;
       }
 
       const safeText = escapeHtml(output.text || "");
-      const label = output.mime || "text/plain";
+      const mimeLabel = output.mime || "text/plain";
       const className = output.mime === "application/vnd.code.notebook.stderr" || output.mime === "application/vnd.code.notebook.error"
         ? "output-block output-error"
         : "output-block";
 
-      return `<div class="${className}"><div class="output-mime">${escapeHtml(label)}</div><pre>${safeText}</pre></div>`;
+      return `<div class="${className}"><div class="output-mime">${escapeHtml(mimeLabel)}</div><pre>${safeText}</pre></div>`;
     })
     .join("");
 }
