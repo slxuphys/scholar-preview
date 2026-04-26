@@ -259,8 +259,16 @@ function renderCellBody(cell) {
     return "";
   }
 
-  const escaped = escapeHtml(stripPreviewDirectiveLines(cell.source || ""));
-  return `<pre class="code-source">${escaped}</pre>`;
+  const source = stripPreviewDirectiveLines(cell.source || "");
+  const lang = cell.language || "";
+  let codeHtml;
+  /* global hljs */
+  if (lang && typeof hljs !== "undefined" && hljs.getLanguage(lang)) {
+    codeHtml = hljs.highlight(source, { language: lang, ignoreIllegals: true }).value;
+  } else {
+    codeHtml = escapeHtml(source);
+  }
+  return `<pre class="code-source"><code class="hljs">${codeHtml}</code></pre>`;
 }
 
 /**
@@ -426,6 +434,7 @@ function renderMarkdownCell(source) {
   let listType = null;
   let listItems = [];
   let codeFence = false;
+  let codeFenceLang = "";
   let codeLines = [];
 
   const flushParagraph = () => {
@@ -460,13 +469,23 @@ function renderMarkdownCell(source) {
       return;
     }
 
-    blocks.push(`<pre class="markdown-code"><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+    const raw = codeLines.join("\n");
+    let codeHtml;
+    if (codeFenceLang && typeof hljs !== "undefined" && hljs.getLanguage(codeFenceLang)) {
+      codeHtml = hljs.highlight(raw, { language: codeFenceLang, ignoreIllegals: true }).value;
+    } else {
+      codeHtml = escapeHtml(raw);
+    }
+    const langClass = codeFenceLang ? ` language-${escapeHtml(codeFenceLang)}` : "";
+    blocks.push(`<pre class="markdown-code"><code class="hljs${langClass}">${codeHtml}</code></pre>`);
     codeFence = false;
+    codeFenceLang = "";
     codeLines = [];
   };
 
   for (const line of lines) {
-    if (/^```/.test(line.trim())) {
+    const fenceMatch = /^```(\S*)/.exec(line.trim());
+    if (fenceMatch) {
       flushParagraph();
       flushList();
 
@@ -474,6 +493,7 @@ function renderMarkdownCell(source) {
         flushCodeFence();
       } else {
         codeFence = true;
+        codeFenceLang = fenceMatch[1] || "";
       }
       continue;
     }

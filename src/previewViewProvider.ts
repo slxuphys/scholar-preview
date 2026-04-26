@@ -210,6 +210,7 @@ export class NotebookPreviewViewProvider {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css" />
   <style>
 ${css}
   </style>
@@ -254,6 +255,8 @@ ${renderedHtml}
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "styles.css"));
     const katexScriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "katex.min.js"));
     const katexStyleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "katex.min.css"));
+    const hlScriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "highlight.min.js"));
+    const hlStyleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "highlight-github.min.css"));
     const nonce = getNonce();
 
     return `<!DOCTYPE html>
@@ -263,6 +266,7 @@ ${renderedHtml}
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data: https:; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="${katexStyleUri}" />
+  <link rel="stylesheet" href="${hlStyleUri}" />
   <link rel="stylesheet" href="${styleUri}" />
   <title>Notebook Preview</title>
 </head>
@@ -283,6 +287,7 @@ ${renderedHtml}
     <section id="cellList" class="cell-list" aria-label="Notebook preview cells"></section>
   </main>
   <script nonce="${nonce}" src="${katexScriptUri}"></script>
+  <script nonce="${nonce}" src="${hlScriptUri}"></script>
   <script nonce="${nonce}">
     window.__NOTEBOOK_PREVIEW_CONFIG__ = {
       followActiveCell: ${this.followActiveCell ? "true" : "false"}
