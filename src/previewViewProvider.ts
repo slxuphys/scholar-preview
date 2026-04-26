@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import * as crypto from "crypto";
 import {
   CellSnapshot,
   HostToWebviewMessage,
@@ -178,7 +179,7 @@ export class NotebookPreviewViewProvider {
         return;
       }
 
-      const index = this.snapshot.cellOrder.findIndex((id) => id === message.id);
+      const index = this.snapshot.cellOrder.indexOf(message.id);
       if (index < 0) {
         return;
       }
@@ -329,7 +330,6 @@ function buildSnapshot(document: vscode.NotebookDocument, prevVersion: number): 
 
 function toOutputSnapshots(outputs: readonly vscode.NotebookCellOutput[]): OutputSnapshot[] {
   const list: OutputSnapshot[] = [];
-
   for (const output of outputs) {
     for (const item of output.items) {
       if (
@@ -377,7 +377,7 @@ function toOutputSnapshots(outputs: readonly vscode.NotebookCellOutput[]): Outpu
 
 function decodeOutputText(item: vscode.NotebookCellOutputItem): string {
   try {
-    return new TextDecoder().decode(item.data);
+    return TEXT_DECODER.decode(item.data);
   } catch {
     return "[Unsupported text output payload]";
   }
@@ -441,6 +441,8 @@ function computePatch(
     });
   }
 
+  // Reorders (without insertion/deletion) fall back to a full sync.
+  // The moveCells op exists in the protocol but is not generated here; a full sync is simpler and safer.
   if (deleted.length === 0 && inserted.length === 0 && !isSameOrder(previous.cellOrder, next.cellOrder)) {
     return undefined;
   }
@@ -494,12 +496,7 @@ function isSameOrder(a: string[], b: string[]): boolean {
 }
 
 function getNonce(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let nonce = "";
-
-  for (let i = 0; i < 32; i += 1) {
-    nonce += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-
-  return nonce;
+  return crypto.randomBytes(16).toString("hex");
 }
+
+const TEXT_DECODER = new TextDecoder();

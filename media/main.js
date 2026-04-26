@@ -234,19 +234,18 @@ function patchCellNode(node, previous, nextCell) {
 
   node.className = getCellClassName(nextCell);
 
-  if (previous.source !== nextCell.source) {
-    const body = node.querySelector(".cell-body");
-    body.innerHTML = renderCellBody(nextCell);
-    // Re-render outputs when source changes for code cells: fig directives may have changed
-    if (nextCell.kind === "code") {
-      const outputs = node.querySelector(".cell-outputs");
-      outputs.innerHTML = renderOutputs(nextCell.outputs, parseFigureDirectives(nextCell.source));
-    }
+  const sourceChanged = previous.source !== nextCell.source;
+  const outputsChanged = JSON.stringify(previous.outputs) !== JSON.stringify(nextCell.outputs);
+
+  if (sourceChanged) {
+    node.querySelector(".cell-body").innerHTML = renderCellBody(nextCell);
   }
 
-  if (JSON.stringify(previous.outputs) !== JSON.stringify(nextCell.outputs)) {
-    const outputs = node.querySelector(".cell-outputs");
-    outputs.innerHTML = renderOutputs(nextCell.outputs, nextCell.kind === "code" ? parseFigureDirectives(nextCell.source) : null);
+  // Re-render outputs if outputs changed, OR if source changed for a code cell
+  // (because fig directives in the source affect how outputs are wrapped).
+  if (outputsChanged || (sourceChanged && nextCell.kind === "code")) {
+    const figDirectives = nextCell.kind === "code" ? parseFigureDirectives(nextCell.source) : null;
+    node.querySelector(".cell-outputs").innerHTML = renderOutputs(nextCell.outputs, figDirectives);
   }
 }
 
@@ -436,6 +435,7 @@ function renderMarkdownCell(source) {
   let codeFence = false;
   let codeFenceLang = "";
   let codeLines = [];
+  let blockquoteLines = [];
 
   const flushParagraph = () => {
     if (paragraph.length === 0) {
@@ -464,6 +464,16 @@ function renderMarkdownCell(source) {
     listItems = [];
   };
 
+  const flushBlockquote = () => {
+    if (blockquoteLines.length === 0) {
+      return;
+    }
+
+    const inner = blockquoteLines.map((line) => `<p>${renderInlineMarkdown(line)}</p>`).join("");
+    blocks.push(`<blockquote>${inner}</blockquote>`);
+    blockquoteLines = [];
+  };
+
   const flushCodeFence = () => {
     if (!codeFence) {
       return;
@@ -488,6 +498,7 @@ function renderMarkdownCell(source) {
     if (fenceMatch) {
       flushParagraph();
       flushList();
+      flushBlockquote();
 
       if (codeFence) {
         flushCodeFence();
@@ -506,6 +517,7 @@ function renderMarkdownCell(source) {
     if (line.trim() === "") {
       flushParagraph();
       flushList();
+      flushBlockquote();
       continue;
     }
 
@@ -513,6 +525,7 @@ function renderMarkdownCell(source) {
     if (heading) {
       flushParagraph();
       flushList();
+      flushBlockquote();
       const level = heading[1].length;
       blocks.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
       continue;
@@ -521,6 +534,7 @@ function renderMarkdownCell(source) {
     if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(line.trim())) {
       flushParagraph();
       flushList();
+      flushBlockquote();
       blocks.push("<hr />");
       continue;
     }
@@ -529,13 +543,14 @@ function renderMarkdownCell(source) {
     if (blockquote) {
       flushParagraph();
       flushList();
-      blocks.push(`<blockquote><p>${renderInlineMarkdown(blockquote[1])}</p></blockquote>`);
+      blockquoteLines.push(blockquote[1]);
       continue;
     }
 
     const ordered = /^\d+\.\s+(.*)$/.exec(line);
     if (ordered) {
       flushParagraph();
+      flushBlockquote();
       if (listType && listType !== "ol") {
         flushList();
       }
@@ -547,6 +562,7 @@ function renderMarkdownCell(source) {
     const unordered = /^[-*+]\s+(.*)$/.exec(line);
     if (unordered) {
       flushParagraph();
+      flushBlockquote();
       if (listType && listType !== "ul") {
         flushList();
       }
@@ -560,6 +576,7 @@ function renderMarkdownCell(source) {
     if (blockFig) {
       flushParagraph();
       flushList();
+      flushBlockquote();
       const alt = blockFig[1];
       const rawSrc = blockFig[2];
       const figLabel = blockFig[3] || null;
@@ -583,6 +600,7 @@ function renderMarkdownCell(source) {
 
   flushParagraph();
   flushList();
+  flushBlockquote();
   flushCodeFence();
 
   const rawHtml = blocks.join("");
