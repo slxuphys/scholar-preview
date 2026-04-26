@@ -28,7 +28,9 @@ toggleFollowButton.addEventListener("click", () => {
 });
 
 openInBrowserButton.addEventListener("click", () => {
-  vscode.postMessage({ type: "openInBrowser", renderedHtml: cellList.innerHTML });
+  const refList = document.getElementById("referenceList");
+  const refHtml = refList && !refList.hidden ? refList.outerHTML : "";
+  vscode.postMessage({ type: "openInBrowser", renderedHtml: cellList.innerHTML + refHtml });
 });
 
 window.addEventListener("message", (event) => {
@@ -734,8 +736,8 @@ function sanitizeHref(target) {
   if (trimmed.startsWith("javascript:")) {
     return "#";
   }
-
-  return escapeHtml(trimmed);
+  // Input is already HTML-escaped by renderInlineMarkdown's upfront escapeHtml call.
+  return trimmed;
 }
 
 function resolveImageSrc(src) {

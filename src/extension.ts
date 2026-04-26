@@ -3,6 +3,7 @@ import { NotebookPreviewViewProvider } from "./previewViewProvider";
 
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new NotebookPreviewViewProvider(context.extensionUri);
+  context.subscriptions.push(provider); // ensures dispose() is called on deactivation
 
   context.subscriptions.push(
     vscode.commands.registerCommand("notebookPreview.openSidepanePreview", async () => {

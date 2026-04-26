@@ -17,6 +17,7 @@ export class NotebookPreviewViewProvider {
   private snapshot?: NotebookSnapshot;
   private followActiveCell = vscode.workspace.getConfiguration().get<boolean>("notebookPreview.followActiveCell", true);
   private statusBar: vscode.StatusBarItem;
+  private disposables: vscode.Disposable[] = [];
 
   constructor(private readonly extensionUri: vscode.Uri) {
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
@@ -24,15 +25,22 @@ export class NotebookPreviewViewProvider {
     this.statusBar.text = "Notebook Preview: Open Preview Beside";
     this.statusBar.show();
 
-    vscode.window.onDidChangeActiveNotebookEditor(() => {
+    this.disposables.push(vscode.window.onDidChangeActiveNotebookEditor(() => {
       this.refresh();
-    });
+    }));
 
-    vscode.window.onDidChangeActiveTextEditor(() => {
-      this.refresh();
-    });
+    this.disposables.push(vscode.window.onDidChangeActiveTextEditor((editor) => {
+      // Only refresh when switching to a markdown file or when the editor closes.
+      // Switching to Python, JSON, etc. should not wipe or change the preview.
+      if (!editor || (
+        editor.document.languageId === "markdown" &&
+        editor.document.uri.scheme !== "vscode-notebook-cell"
+      )) {
+        this.refresh();
+      }
+    }));
 
-    vscode.workspace.onDidChangeTextDocument((event) => {
+    this.disposables.push(vscode.workspace.onDidChangeTextDocument((event) => {
       // Notebook cell documents also have languageId "markdown" — skip them.
       if (event.document.uri.scheme === "vscode-notebook-cell") {
         return;
@@ -45,9 +53,9 @@ export class NotebookPreviewViewProvider {
         return;
       }
       this.pushMarkdownUpdate(event.document);
-    });
+    }));
 
-    vscode.window.onDidChangeNotebookEditorSelection((event) => {
+    this.disposables.push(vscode.window.onDidChangeNotebookEditorSelection((event) => {
       const active = event.selections[0];
       if (!active || !this.snapshot) {
         return;
@@ -67,16 +75,25 @@ export class NotebookPreviewViewProvider {
 
       this.snapshot.docVersion += 1;
       this.snapshot.activeCellId = activeCellId;
-    });
+    }));
 
-    vscode.workspace.onDidChangeNotebookDocument((event) => {
+    this.disposables.push(vscode.workspace.onDidChangeNotebookDocument((event) => {
       const editor = vscode.window.activeNotebookEditor;
       if (!editor || editor.notebook.uri.toString() !== event.notebook.uri.toString()) {
         return;
       }
 
       this.pushIncrementalUpdate(event);
-    });
+    }));
+  }
+
+  dispose(): void {
+    this.panel?.dispose();
+    this.statusBar.dispose();
+    for (const d of this.disposables) {
+      d.dispose();
+    }
+    this.disposables = [];
   }
 
   open(): void {
@@ -129,12 +146,11 @@ export class NotebookPreviewViewProvider {
 
     const editor = vscode.window.activeNotebookEditor;
     if (!editor) {
-      this.snapshot = undefined;
       this.statusBar.text = "Notebook Preview: No Active File";
       if (this.panel) {
         this.panel.title = this.getPanelTitle();
       }
-      this.postMessage({ type: "status", text: "No active notebook or markdown editor." });
+      // Preserve current preview — don't wipe snapshot or clear the webview.
       return;
     }
 
