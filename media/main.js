@@ -39,6 +39,12 @@ window.addEventListener("message", (event) => {
     return;
   }
 
+  if (message.type === "setConfig") {
+    window.__NOTEBOOK_PREVIEW_CONFIG__.followActiveCell = message.followActiveCell;
+    toggleFollowButton.setAttribute("aria-pressed", String(message.followActiveCell));
+    return;
+  }
+
   if (message.type === "fullSync") {
     applyFullSync(message.snapshot, message.notebookDir ?? "");
     return;

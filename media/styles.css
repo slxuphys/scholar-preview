@@ -54,10 +54,18 @@ body {
   font-size: 12px;
 }
 
-#openInBrowserButton {
+#openInBrowserButton,
+#toggleFollowButton,
+#refreshButton {
   display: flex;
   align-items: center;
   padding: 6px 8px;
+}
+
+#toggleFollowButton[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: #e8f0fe;
 }
 
 main {
@@ -248,16 +256,30 @@ figcaption {
   overflow-x: auto;
 }
 
+/* KaTeX sizing: default is 1.21em which overshoots Crimson Text at 16px.
+   Set to 1em so inline and display math match surrounding text. */
+.katex {
+  font-size: 1em;
+}
+
+/* Strip KaTeX's own 1em top/bottom margin on display blocks;
+   spacing is handled by .katex-display-eq instead. */
+.katex-display {
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
 /* KaTeX display equation with right-aligned number */
 .katex-display-eq {
   display: flex;
-  align-items: center;
-  margin: 1em 0;
+  align-items: baseline;
+  margin: 0.5em 0;
 }
 
 .katex-display-content {
   flex: 1;
-  overflow-x: auto;
+  min-width: 0;
 }
 
 .eq-number {

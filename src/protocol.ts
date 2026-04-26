@@ -61,6 +61,10 @@ export type HostToWebviewMessage =
   | {
       type: "status";
       text: string;
+    }
+  | {
+      type: "setConfig";
+      followActiveCell: boolean;
     };
 
 export type WebviewToHostMessage =
