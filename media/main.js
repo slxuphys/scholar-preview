@@ -17,6 +17,7 @@ const emptyState = document.getElementById("emptyState");
 const statusText = document.getElementById("statusText");
 const refreshButton = document.getElementById("refreshButton");
 const toggleFollowButton = document.getElementById("toggleFollowButton");
+const openInBrowserButton = document.getElementById("openInBrowserButton");
 
 refreshButton.addEventListener("click", () => {
   vscode.postMessage({ type: "requestFullSync" });
@@ -24,6 +25,10 @@ refreshButton.addEventListener("click", () => {
 
 toggleFollowButton.addEventListener("click", () => {
   vscode.postMessage({ type: "toggleFollowActiveCell" });
+});
+
+openInBrowserButton.addEventListener("click", () => {
+  vscode.postMessage({ type: "openInBrowser", renderedHtml: cellList.innerHTML });
 });
 
 window.addEventListener("message", (event) => {

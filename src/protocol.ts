@@ -77,4 +77,8 @@ export type WebviewToHostMessage =
   | {
       type: "ack";
       docVersion: number;
+    }
+  | {
+      type: "openInBrowser";
+      renderedHtml: string;
     };

@@ -1,4 +1,7 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import {
   CellSnapshot,
   HostToWebviewMessage,
@@ -188,7 +191,49 @@ export class NotebookPreviewViewProvider {
 
     if (message.type === "ack") {
       this.statusBar.text = `Notebook Preview: Synced v${message.docVersion}`;
+      return;
     }
+
+    if (message.type === "openInBrowser") {
+      this.openInBrowser(message.renderedHtml);
+      return;
+    }
+  }
+
+  private openInBrowser(renderedHtml: string): void {
+    const cssPath = vscode.Uri.joinPath(this.extensionUri, "media", "styles.css").fsPath;
+    const css = fs.readFileSync(cssPath, "utf8");
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css" />
+  <style>
+${css}
+  </style>
+  <style>
+    body { margin: 0; }
+    .toolbar { display: none; }
+    .cell.active { border-color: var(--border); box-shadow: none; }
+    .cell-markdown.active { border-color: transparent; background: transparent; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style>
+  <title>Notebook Preview</title>
+</head>
+<body>
+  <main>
+    <section class="cell-list" aria-label="Notebook preview cells">
+${renderedHtml}
+    </section>
+  </main>
+</body>
+</html>`;
+
+    const tmpFile = path.join(os.tmpdir(), `notebook-preview-${Date.now()}.html`);
+    fs.writeFileSync(tmpFile, html, "utf8");
+    void vscode.env.openExternal(vscode.Uri.file(tmpFile));
   }
 
   private postMessage(message: HostToWebviewMessage): void {
@@ -226,6 +271,12 @@ export class NotebookPreviewViewProvider {
     <button id="refreshButton" type="button">Refresh</button>
     <button id="toggleFollowButton" type="button">Toggle Follow</button>
     <span id="statusText">Idle</span>
+    <button id="openInBrowserButton" type="button" title="Open in browser for printing">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/>
+        <path d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/>
+      </svg>
+    </button>
   </header>
   <main>
     <section id="emptyState" class="empty-state">Open a notebook to preview cells.</section>

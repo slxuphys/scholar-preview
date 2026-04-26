@@ -53,6 +53,12 @@ body {
   font-size: 12px;
 }
 
+#openInBrowserButton {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+}
+
 main {
   padding: 10px;
 }
