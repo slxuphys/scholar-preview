@@ -455,6 +455,52 @@ function renumberCrossRefs() {
     ref.textContent = num !== undefined ? `Fig. ${num}` : "Fig. ??";
     ref.href = num !== undefined ? `#${label}` : "";
   }
+
+  // --- Citations ---
+  const citeLabelMap = new Map(); // key → citation number
+  for (const el of document.querySelectorAll(".cite-ref[data-cite-key]")) {
+    const key = el.dataset.citeKey;
+    if (!citeLabelMap.has(key)) {
+      citeLabelMap.set(key, citeLabelMap.size + 1);
+    }
+    const num = citeLabelMap.get(key);
+    el.textContent = `[${num}]`;
+    // Link directly to the URL; ref list at bottom also has the link.
+    if (key.startsWith("doi:")) {
+      el.href = `https://doi.org/${key.slice(4)}`;
+    } else {
+      el.href = `https://arxiv.org/abs/${key.slice(6)}`;
+    }
+    el.target = "_blank";
+    el.rel = "noopener noreferrer";
+    el.title = key; // tooltip on hover
+  }
+
+  // Build / clear reference list
+  const refList = document.getElementById("referenceList");
+  if (refList) {
+    if (citeLabelMap.size === 0) {
+      refList.hidden = true;
+      refList.innerHTML = "";
+    } else {
+      refList.hidden = false;
+      const entries = [...citeLabelMap.entries()].sort((a, b) => a[1] - b[1]);
+      refList.innerHTML = `<h2 class="ref-heading">References</h2>` +
+        entries.map(([key, num]) => {
+          let url, display;
+          if (key.startsWith("doi:")) {
+            const doi = key.slice(4);
+            url = `https://doi.org/${doi}`;
+            display = key;
+          } else {
+            const id = key.slice(6); // strip "arxiv:"
+            url = `https://arxiv.org/abs/${id}`;
+            display = `arXiv:${id}`;
+          }
+          return `<div class="ref-entry" id="cite-entry-${num}"><span class="ref-number">[${num}]</span>\u00a0<a class="ref-link" href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(display)}</a></div>`;
+        }).join("");
+    }
+  }
 }
 
 function renderMarkdownCell(source) {
@@ -672,15 +718,13 @@ function renderInlineMarkdown(text) {
   html = html.replace(/@(sec-[a-z0-9_-]+)/g, (_match, label) => {
     return `<a class="sec-ref" data-sec-ref="${label}" href="#${label}">Section ??</a>`;
   });
-  // DOI links: @doi:10.xxxx/yyyy → https://doi.org/...
+  // DOI citations: @doi:10.xxxx/yyyy → numbered placeholder resolved after full DOM scan
   html = html.replace(/@doi:(10\.[^\s,;)\]}<>"]+)/g, (_match, doi) => {
-    const url = `https://doi.org/${doi}`;
-    return `<a class="cite-doi" href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(doi)}</a>`;
+    return `<a class="cite-ref" data-cite-key="doi:${escapeHtml(doi)}" href="#">[??]</a>`;
   });
-  // arXiv links: @arxiv:NNNN.NNNNN → https://arxiv.org/abs/...
+  // arXiv citations: @arxiv:NNNN.NNNNN → numbered placeholder resolved after full DOM scan
   html = html.replace(/@arxiv:([0-9]{4}\.[0-9]{4,5}(?:v[0-9]+)?)/g, (_match, id) => {
-    const url = `https://arxiv.org/abs/${id}`;
-    return `<a class="cite-arxiv" href="${url}" target="_blank" rel="noopener noreferrer">arXiv:${escapeHtml(id)}</a>`;
+    return `<a class="cite-ref" data-cite-key="arxiv:${escapeHtml(id)}" href="#">[??]</a>`;
   });
   return html;
 }

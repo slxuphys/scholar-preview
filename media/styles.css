@@ -243,17 +243,58 @@ figcaption {
   text-decoration: underline;
 }
 
-.cite-doi,
-.cite-arxiv {
+/* Inline citation number [1] [2] */
+.cite-ref {
   color: var(--accent);
-  font-style: normal;
   text-decoration: none;
-  font-size: 0.92em;
+  font-size: 0.82em;
+  vertical-align: super;
+  line-height: 0;
   font-family: "SFMono-Regular", Consolas, monospace;
 }
 
-.cite-doi:hover,
-.cite-arxiv:hover {
+.cite-ref:hover {
+  text-decoration: underline;
+}
+
+/* Reference list at bottom */
+.reference-list {
+  padding: 0 1.5rem 2rem;
+  border-top: 1px solid var(--border);
+  margin-top: 1rem;
+}
+
+.ref-heading {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 1.2em 0 0.6em;
+  color: var(--fg);
+}
+
+.ref-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  margin: 0.3em 0;
+  font-size: 0.92em;
+  line-height: 1.5;
+}
+
+.ref-number {
+  color: var(--muted);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  min-width: 2em;
+  flex-shrink: 0;
+}
+
+.ref-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  word-break: break-all;
+}
+
+.ref-link:hover {
   text-decoration: underline;
 }
 
