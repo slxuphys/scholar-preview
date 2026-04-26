@@ -28,6 +28,21 @@ export class NotebookPreviewViewProvider {
       this.refresh();
     });
 
+    vscode.window.onDidChangeActiveTextEditor(() => {
+      this.refresh();
+    });
+
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      if (event.document.languageId !== "markdown") {
+        return;
+      }
+      const activeTextEditor = vscode.window.activeTextEditor;
+      if (!activeTextEditor || activeTextEditor.document.uri.toString() !== event.document.uri.toString()) {
+        return;
+      }
+      this.pushMarkdownUpdate(event.document);
+    });
+
     vscode.window.onDidChangeNotebookEditorSelection((event) => {
       const active = event.selections[0];
       if (!active || !this.snapshot) {
@@ -98,14 +113,21 @@ export class NotebookPreviewViewProvider {
   }
 
   refresh(): void {
+    // Markdown text editor takes priority when active
+    const textEditor = vscode.window.activeTextEditor;
+    if (textEditor?.document.languageId === "markdown") {
+      this.refreshMarkdown(textEditor.document);
+      return;
+    }
+
     const editor = vscode.window.activeNotebookEditor;
     if (!editor) {
       this.snapshot = undefined;
-      this.statusBar.text = "Notebook Preview: No Active Notebook";
+      this.statusBar.text = "Notebook Preview: No Active File";
       if (this.panel) {
         this.panel.title = this.getPanelTitle();
       }
-      this.postMessage({ type: "status", text: "No active notebook editor." });
+      this.postMessage({ type: "status", text: "No active notebook or markdown editor." });
       return;
     }
 
@@ -120,6 +142,49 @@ export class NotebookPreviewViewProvider {
         ).toString()
       : "";
     this.postMessage({ type: "fullSync", snapshot: this.snapshot, notebookDir });
+  }
+
+  private refreshMarkdown(document: vscode.TextDocument): void {
+    this.snapshot = buildMarkdownSnapshot(document, this.snapshot?.docVersion ?? 0);
+    this.statusBar.text = "Notebook Preview: Connected";
+    if (this.panel) {
+      this.panel.title = this.getPanelTitle(document.uri);
+    }
+    const docDir = this.panel
+      ? this.panel.webview.asWebviewUri(vscode.Uri.joinPath(document.uri, "..")).toString()
+      : "";
+    this.postMessage({ type: "fullSync", snapshot: this.snapshot, notebookDir: docDir });
+  }
+
+  private pushMarkdownUpdate(document: vscode.TextDocument): void {
+    const nextSnapshot = buildMarkdownSnapshot(document, this.snapshot?.docVersion ?? 0);
+    const docDir = this.panel
+      ? this.panel.webview.asWebviewUri(vscode.Uri.joinPath(document.uri, "..")).toString()
+      : "";
+
+    if (!this.snapshot) {
+      this.snapshot = nextSnapshot;
+      this.postMessage({ type: "fullSync", snapshot: nextSnapshot, notebookDir: docDir });
+      return;
+    }
+
+    const id = document.uri.toString();
+    const prevCell = this.snapshot.cells[id];
+    const nextCell = nextSnapshot.cells[id];
+
+    if (prevCell && nextCell && hasCellChanged(prevCell, nextCell)) {
+      this.snapshot = nextSnapshot;
+      this.postMessage({
+        type: "patch",
+        baseVersion: nextSnapshot.docVersion - 1,
+        docVersion: nextSnapshot.docVersion,
+        ops: [{ type: "recordCellSnapshot", id, cell: nextCell }]
+      });
+    } else if (!prevCell) {
+      // Different markdown file opened — full sync
+      this.snapshot = nextSnapshot;
+      this.postMessage({ type: "fullSync", snapshot: nextSnapshot, notebookDir: docDir });
+    }
   }
 
   toggleFollowActiveCell(): void {
@@ -307,6 +372,23 @@ ${renderedHtml}
 </body>
 </html>`;
   }
+}
+
+function buildMarkdownSnapshot(document: vscode.TextDocument, prevVersion: number): NotebookSnapshot {
+  const id = document.uri.toString();
+  const cell: CellSnapshot = {
+    id,
+    kind: "markdown",
+    language: "markdown",
+    source: document.getText(),
+    outputs: []
+  };
+  return {
+    docVersion: prevVersion + 1,
+    activeCellId: id,
+    cellOrder: [id],
+    cells: { [id]: cell }
+  };
 }
 
 function buildSnapshot(document: vscode.NotebookDocument, prevVersion: number): NotebookSnapshot {

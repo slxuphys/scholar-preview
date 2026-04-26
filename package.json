@@ -44,6 +44,13 @@
           "command": "notebookPreview.refreshPreview"
         }
       ],
+      "editor/title": [
+        {
+          "command": "notebookPreview.openSidepanePreview",
+          "group": "navigation@10",
+          "when": "editorLangId == markdown"
+        }
+      ],
       "notebook/title": [
         {
           "command": "notebookPreview.openSidepanePreview",
