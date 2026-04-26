@@ -33,6 +33,10 @@ export class NotebookPreviewViewProvider {
     });
 
     vscode.workspace.onDidChangeTextDocument((event) => {
+      // Notebook cell documents also have languageId "markdown" — skip them.
+      if (event.document.uri.scheme === "vscode-notebook-cell") {
+        return;
+      }
       if (event.document.languageId !== "markdown") {
         return;
       }
@@ -113,9 +117,12 @@ export class NotebookPreviewViewProvider {
   }
 
   refresh(): void {
-    // Markdown text editor takes priority when active
+    // Markdown text editor takes priority — but not notebook cell editors (same languageId, different scheme).
     const textEditor = vscode.window.activeTextEditor;
-    if (textEditor?.document.languageId === "markdown") {
+    if (
+      textEditor?.document.languageId === "markdown" &&
+      textEditor.document.uri.scheme !== "vscode-notebook-cell"
+    ) {
       this.refreshMarkdown(textEditor.document);
       return;
     }
