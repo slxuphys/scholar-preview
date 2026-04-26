@@ -71,7 +71,7 @@ export class NotebookPreviewViewProvider {
         return;
       }
 
-      this.pushIncrementalUpdate(event.notebook);
+      this.pushIncrementalUpdate(event);
     });
   }
 
@@ -196,32 +196,59 @@ export class NotebookPreviewViewProvider {
     this.postMessage({ type: "setConfig", followActiveCell: this.followActiveCell });
   }
 
-  private pushIncrementalUpdate(document: vscode.NotebookDocument): void {
-    const nextSnapshot = buildSnapshot(document, this.snapshot?.docVersion ?? 0);
+  private pushIncrementalUpdate(event: vscode.NotebookDocumentChangeEvent): void {
+    const document = event.notebook;
     const notebookDir = this.panel
       ? this.panel.webview.asWebviewUri(vscode.Uri.joinPath(document.uri, "..")).toString()
       : "";
 
+    // No existing snapshot — do a full sync to establish baseline.
     if (!this.snapshot) {
-      this.snapshot = nextSnapshot;
-      this.postMessage({ type: "fullSync", snapshot: nextSnapshot, notebookDir });
+      this.snapshot = buildSnapshot(document, 0);
+      this.postMessage({ type: "fullSync", snapshot: this.snapshot, notebookDir });
       return;
     }
 
-    const patch = computePatch(this.snapshot, nextSnapshot);
-    if (!patch) {
-      this.snapshot = nextSnapshot;
-      this.postMessage({ type: "fullSync", snapshot: nextSnapshot, notebookDir });
+    // Structural changes (cells added / removed / reordered) — rebuild everything.
+    // These are infrequent so a full sync is acceptable.
+    if (event.contentChanges.length > 0) {
+      this.snapshot = buildSnapshot(document, this.snapshot.docVersion);
+      this.postMessage({ type: "fullSync", snapshot: this.snapshot, notebookDir });
       return;
     }
 
-    this.snapshot = nextSnapshot;
-    this.postMessage({
-      type: "patch",
-      baseVersion: patch.baseVersion,
-      docVersion: patch.docVersion,
-      ops: patch.ops
-    });
+    // Cell-content-only changes: serialize only the cells that actually changed.
+    // This is O(changed cells) instead of O(all cells), avoiding full re-serialization
+    // of all image outputs on every keystroke.
+    const ops: PatchOp[] = [];
+    const nextVersion = this.snapshot.docVersion + 1;
+
+    for (const change of event.cellChanges) {
+      // Skip if neither source nor outputs changed (e.g. only metadata/executionSummary).
+      if (change.document === undefined && change.outputs === undefined) {
+        continue;
+      }
+
+      const id = change.cell.document.uri.toString();
+      const nextCell: CellSnapshot = {
+        id,
+        kind: change.cell.kind === vscode.NotebookCellKind.Markup ? "markdown" : "code",
+        language: change.cell.document.languageId,
+        source: change.cell.document.getText(),
+        outputs: toOutputSnapshots(change.cell.outputs)
+      };
+
+      this.snapshot.cells[id] = nextCell;
+      ops.push({ type: "recordCellSnapshot", id, cell: nextCell });
+    }
+
+    if (ops.length === 0) {
+      return;
+    }
+
+    const baseVersion = this.snapshot.docVersion;
+    this.snapshot.docVersion = nextVersion;
+    this.postMessage({ type: "patch", baseVersion, docVersion: nextVersion, ops });
   }
 
   private handleWebviewMessage(message: WebviewToHostMessage): void {
@@ -506,63 +533,6 @@ function escapeHtml(input: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function computePatch(
-  previous: NotebookSnapshot,
-  next: NotebookSnapshot
-): { baseVersion: number; docVersion: number; ops: PatchOp[] } | undefined {
-  const ops: PatchOp[] = [];
-
-  const previousIds = new Set(previous.cellOrder);
-  const nextIds = new Set(next.cellOrder);
-
-  const deleted = previous.cellOrder.filter((id) => !nextIds.has(id));
-  if (deleted.length > 0) {
-    ops.push({ type: "deleteCells", ids: deleted });
-  }
-
-  const inserted = next.cellOrder
-    .map((id, index) => ({ id, index }))
-    .filter((entry) => !previousIds.has(entry.id));
-
-  for (const entry of inserted) {
-    ops.push({
-      type: "insertCells",
-      at: entry.index,
-      cells: [next.cells[entry.id]]
-    });
-  }
-
-  // Reorders (without insertion/deletion) fall back to a full sync.
-  // The moveCells op exists in the protocol but is not generated here; a full sync is simpler and safer.
-  if (deleted.length === 0 && inserted.length === 0 && !isSameOrder(previous.cellOrder, next.cellOrder)) {
-    return undefined;
-  }
-
-  for (const id of next.cellOrder) {
-    if (!previous.cells[id] || !next.cells[id]) {
-      continue;
-    }
-
-    if (hasCellChanged(previous.cells[id], next.cells[id])) {
-      ops.push({
-        type: "recordCellSnapshot",
-        id,
-        cell: next.cells[id]
-      });
-    }
-  }
-
-  if (previous.activeCellId !== next.activeCellId) {
-    ops.push({ type: "setActiveCell", id: next.activeCellId });
-  }
-
-  return {
-    baseVersion: previous.docVersion,
-    docVersion: next.docVersion,
-    ops
-  };
-}
-
 function hasCellChanged(a: CellSnapshot, b: CellSnapshot): boolean {
   return (
     a.source !== b.source ||
@@ -570,20 +540,6 @@ function hasCellChanged(a: CellSnapshot, b: CellSnapshot): boolean {
     a.language !== b.language ||
     JSON.stringify(a.outputs) !== JSON.stringify(b.outputs)
   );
-}
-
-function isSameOrder(a: string[], b: string[]): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-
-  for (let i = 0; i < a.length; i += 1) {
-    if (a[i] !== b[i]) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 function getNonce(): string {
