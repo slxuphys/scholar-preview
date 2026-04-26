@@ -15,6 +15,7 @@ const state = {
 const cellList = document.getElementById("cellList");
 const emptyState = document.getElementById("emptyState");
 const statusText = document.getElementById("statusText");
+const docHeader = document.getElementById("docHeader");
 const refreshButton = document.getElementById("refreshButton");
 const toggleFollowButton = document.getElementById("toggleFollowButton");
 const openInBrowserButton = document.getElementById("openInBrowserButton");
@@ -79,6 +80,7 @@ function applyFullSync(snapshot, notebookDir) {
     cellList.appendChild(node);
   }
 
+  updateDocHeader();
   updateEmptyState();
   updateActiveVisual();
   renumberCrossRefs();
@@ -204,6 +206,11 @@ function updateSingleCell(id, nextCell) {
   }
 
   state.cellStateById[id] = nextCell;
+
+  // If the first cell changed, re-evaluate the doc header.
+  if (state.cellOrder[0] === id) {
+    updateDocHeader();
+  }
 
   const node = state.nodeById.get(id);
   if (!node) {
@@ -512,8 +519,66 @@ function renumberCrossRefs() {
   }
 }
 
+/**
+ * Parse YAML-style front matter (--- ... ---) from the start of a source string.
+ * Returns { meta, rest } or null if no front matter found.
+ * Only handles simple scalar values — no full YAML parser needed.
+ */
+function parseFrontMatter(source) {
+  if (!source.startsWith("---")) {
+    return null;
+  }
+  const afterOpen = source.indexOf("\n");
+  if (afterOpen < 0) { return null; }
+  const closeIdx = source.indexOf("\n---", afterOpen);
+  if (closeIdx < 0) { return null; }
+  const yamlBlock = source.slice(afterOpen + 1, closeIdx);
+  const rest = source.slice(closeIdx + 4); // skip \n---
+  const meta = {};
+  for (const line of yamlBlock.split(/\r?\n/)) {
+    const m = /^([\w-]+)\s*:\s*(.+)$/.exec(line.trim());
+    if (m) {
+      meta[m[1]] = m[2].replace(/^["']|["']$/g, "").trim();
+    }
+  }
+  return { meta, rest };
+}
+
+/**
+ * Build and show/hide the doc header block based on the first cell's front matter.
+ */
+function updateDocHeader() {
+  const firstId = state.cellOrder[0];
+  const firstCell = firstId ? state.cellStateById[firstId] : null;
+  if (!firstCell || firstCell.kind !== "markdown") {
+    docHeader.hidden = true;
+    docHeader.innerHTML = "";
+    return;
+  }
+  const fm = parseFrontMatter(firstCell.source || "");
+  if (!fm || (!fm.meta.title && !fm.meta.author && !fm.meta.date)) {
+    docHeader.hidden = true;
+    docHeader.innerHTML = "";
+    return;
+  }
+  const { title, author, date } = fm.meta;
+  let html = "";
+  if (title) {
+    html += `<h1 class="doc-title">${escapeHtml(title)}</h1>`;
+  }
+  const meta = [author, date].filter(Boolean);
+  if (meta.length > 0) {
+    html += `<p class="doc-meta">${meta.map(escapeHtml).join(" \u00b7 ")}</p>`;
+  }
+  docHeader.innerHTML = html;
+  docHeader.hidden = false;
+}
+
 function renderMarkdownCell(source) {
-  const { tokenized, displayMaths, inlineMaths } = extractMathTokens(source);
+  // Strip YAML front matter before rendering; the doc header is handled separately.
+  const fm = parseFrontMatter(source);
+  const bodySource = fm ? fm.rest : source;
+  const { tokenized, displayMaths, inlineMaths } = extractMathTokens(bodySource);
   const lines = tokenized.split(/\r?\n/);
   const blocks = [];
   let paragraph = [];

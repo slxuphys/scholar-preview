@@ -408,6 +408,7 @@ ${renderedHtml}
     </button>
   </header>
   <main>
+    <div id="docHeader" hidden></div>
     <section id="emptyState" class="empty-state">Open a notebook to preview cells.</section>
     <section id="cellList" class="cell-list" aria-label="Notebook preview cells"></section>
     <section id="referenceList" class="reference-list" hidden></section>
