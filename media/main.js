@@ -31,7 +31,8 @@ toggleFollowButton.addEventListener("click", () => {
 openInBrowserButton.addEventListener("click", () => {
   const refList = document.getElementById("referenceList");
   const refHtml = refList && !refList.hidden ? refList.outerHTML : "";
-  vscode.postMessage({ type: "openInBrowser", renderedHtml: cellList.innerHTML + refHtml });
+  const headerHtml = docHeader && !docHeader.hidden ? docHeader.outerHTML : "";
+  vscode.postMessage({ type: "openInBrowser", renderedHtml: headerHtml + cellList.innerHTML + refHtml });
 });
 
 window.addEventListener("message", (event) => {
