@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap');
+
 :root {
   --bg: #ffffff;
   --fg: #1f2328;
@@ -17,8 +19,7 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family: Georgia, "Times New Roman", serif;
-  min-height: 100vh;
+  font-family: "Crimson Text", Georgia, serif;
 }
 
 .toolbar {
@@ -143,6 +144,10 @@ main {
   line-height: 1.5;
 }
 
+.cell-code .cell-body {
+  border-bottom: 1px solid var(--border);
+}
+
 .cell-markdown .cell-body {
   padding: 8px 2px;
 }
@@ -214,7 +219,7 @@ figcaption {
   margin-top: 0.45em;
   font-size: 13px;
   color: var(--muted);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Crimson Text", Georgia, serif;
   font-style: normal;
 }
 
@@ -258,7 +263,7 @@ figcaption {
 .eq-number {
   padding-left: 1.5em;
   color: var(--muted);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Crimson Text", Georgia, serif;
   font-size: 0.95em;
   white-space: nowrap;
   user-select: none;
@@ -281,7 +286,7 @@ figcaption {
 .eq-ref {
   color: var(--accent);
   font-style: normal;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Crimson Text", Georgia, serif;
   text-decoration: none;
 }
 
@@ -303,7 +308,7 @@ figcaption {
 .markdown-content h6 {
   margin: 1.25em 0 0.55em;
   line-height: 1.2;
-  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  font-family: "Crimson Text", Georgia, serif;
   font-weight: 700;
   color: #111827;
 }
