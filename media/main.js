@@ -32,7 +32,9 @@ openInBrowserButton.addEventListener("click", () => {
   const refList = document.getElementById("referenceList");
   const refHtml = refList && !refList.hidden ? refList.outerHTML : "";
   const headerHtml = docHeader && !docHeader.hidden ? docHeader.outerHTML : "";
-  vscode.postMessage({ type: "openInBrowser", renderedHtml: headerHtml + cellList.innerHTML + refHtml });
+  const visibleCells = Array.from(cellList.querySelectorAll("article:not([hidden])"))
+    .map(n => n.outerHTML).join("");
+  vscode.postMessage({ type: "openInBrowser", renderedHtml: headerHtml + visibleCells + refHtml });
 });
 
 window.addEventListener("message", (event) => {
@@ -221,10 +223,17 @@ function updateSingleCell(id, nextCell) {
   patchCellNode(node, previous, nextCell);
 }
 
+function isFrontMatterOnly(cell) {
+  if (cell.kind !== "markdown") { return false; }
+  const fm = parseFrontMatter(cell.source || "");
+  return fm !== null && fm.rest.trim() === "";
+}
+
 function createCellNode(cell) {
   const article = document.createElement("article");
   article.className = getCellClassName(cell);
   article.dataset.cellId = cell.id;
+  article.hidden = isFrontMatterOnly(cell);
 
   const header = document.createElement("header");
   header.className = "cell-header";
@@ -256,6 +265,7 @@ function patchCellNode(node, previous, nextCell) {
   }
 
   node.className = getCellClassName(nextCell);
+  node.hidden = isFrontMatterOnly(nextCell);
 
   const sourceChanged = previous.source !== nextCell.source;
   const outputsChanged = JSON.stringify(previous.outputs) !== JSON.stringify(nextCell.outputs);
