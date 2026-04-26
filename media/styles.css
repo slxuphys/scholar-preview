@@ -231,14 +231,22 @@ figcaption {
   font-style: normal;
 }
 
-.fig-ref {
+.fig-ref,
+.sec-ref {
   color: var(--accent);
   font-style: normal;
   text-decoration: none;
 }
 
-.fig-ref:hover {
+.fig-ref:hover,
+.sec-ref:hover {
   text-decoration: underline;
+}
+
+.sec-number {
+  color: var(--muted);
+  font-weight: normal;
+  margin-right: 0.1em;
 }
 
 .math-inline {

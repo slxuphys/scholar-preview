@@ -396,6 +396,32 @@ function restoreMathTokens(html, displayMaths, inlineMaths) {
  * numbers, build label maps, then resolve all cross-reference placeholders.
  */
 function renumberCrossRefs() {
+  // --- Sections ---
+  // Counters for h1–h6; resetting lower levels when a higher level increments.
+  const secCounters = [0, 0, 0, 0, 0, 0];
+  const secLabelMap = new Map();
+
+  for (const numEl of document.querySelectorAll(".sec-number[data-sec-level]")) {
+    const level = parseInt(numEl.dataset.secLevel, 10);
+    secCounters[level - 1]++;
+    // Reset all deeper levels
+    for (let i = level; i < 6; i++) { secCounters[i] = 0; }
+
+    // Build dotted number string: only include levels up to current
+    const numStr = secCounters.slice(0, level).join(".");
+    numEl.textContent = numStr + "\u00a0\u00a0"; // trailing non-breaking spaces for gap
+
+    const heading = numEl.closest("[data-sec-label]");
+    if (heading) { secLabelMap.set(heading.dataset.secLabel, numStr); }
+  }
+
+  for (const ref of document.querySelectorAll(".sec-ref[data-sec-ref]")) {
+    const label = ref.dataset.secRef;
+    const num = secLabelMap.get(label);
+    ref.textContent = num !== undefined ? `Section ${num}` : "Section ??";
+    ref.href = num !== undefined ? `#${label}` : "";
+  }
+
   // --- Equations ---
   const eqLabelMap = new Map();
   let eqN = 1;
@@ -527,13 +553,17 @@ function renderMarkdownCell(source) {
       continue;
     }
 
-    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
+    const heading = /^(#{1,6})\s+(.*?)(?:\s+\{#(sec-[a-z0-9_-]+)\})?\s*$/.exec(line);
     if (heading) {
       flushParagraph();
       flushList();
       flushBlockquote();
       const level = heading[1].length;
-      blocks.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
+      const headingText = heading[2];
+      const secLabel = heading[3] || null;
+      const idAttr = secLabel ? ` id="${secLabel}" data-sec-label="${secLabel}"` : "";
+      const numSpan = `<span class="sec-number" data-sec-level="${level}"></span>`;
+      blocks.push(`<h${level}${idAttr}>${numSpan}${renderInlineMarkdown(headingText)}</h${level}>`);
       continue;
     }
 
@@ -637,6 +667,10 @@ function renderInlineMarkdown(text) {
   // Figure cross-references: @fig-label → placeholder resolved after renumbering
   html = html.replace(/@(fig-[a-z0-9_-]+)/g, (_match, label) => {
     return `<a class="fig-ref" data-fig-ref="${label}" href="#${label}">Fig. ??</a>`;
+  });
+  // Section cross-references: @sec-label → placeholder resolved after renumbering
+  html = html.replace(/@(sec-[a-z0-9_-]+)/g, (_match, label) => {
+    return `<a class="sec-ref" data-sec-ref="${label}" href="#${label}">Section ??</a>`;
   });
   return html;
 }
