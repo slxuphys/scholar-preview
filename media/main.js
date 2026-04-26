@@ -672,6 +672,16 @@ function renderInlineMarkdown(text) {
   html = html.replace(/@(sec-[a-z0-9_-]+)/g, (_match, label) => {
     return `<a class="sec-ref" data-sec-ref="${label}" href="#${label}">Section ??</a>`;
   });
+  // DOI links: @doi:10.xxxx/yyyy → https://doi.org/...
+  html = html.replace(/@doi:(10\.[^\s,;)\]}<>"]+)/g, (_match, doi) => {
+    const url = `https://doi.org/${doi}`;
+    return `<a class="cite-doi" href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(doi)}</a>`;
+  });
+  // arXiv links: @arxiv:NNNN.NNNNN → https://arxiv.org/abs/...
+  html = html.replace(/@arxiv:([0-9]{4}\.[0-9]{4,5}(?:v[0-9]+)?)/g, (_match, id) => {
+    const url = `https://arxiv.org/abs/${id}`;
+    return `<a class="cite-arxiv" href="${url}" target="_blank" rel="noopener noreferrer">arXiv:${escapeHtml(id)}</a>`;
+  });
   return html;
 }
 
