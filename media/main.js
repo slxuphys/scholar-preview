@@ -63,6 +63,7 @@ window.addEventListener("message", (event) => {
 });
 
 function applyFullSync(snapshot, notebookDir) {
+  statusText.textContent = "Updating\u2026";
   state.docVersion = snapshot.docVersion;
   state.activeCellId = snapshot.activeCellId;
   state.notebookDir = notebookDir;
@@ -81,10 +82,15 @@ function applyFullSync(snapshot, notebookDir) {
   updateEmptyState();
   updateActiveVisual();
   renumberCrossRefs();
+  statusText.textContent = "Synced";
   vscode.postMessage({ type: "ack", docVersion: state.docVersion });
 }
 
 function applyPatch(ops, docVersion) {
+  const contentOps = ops.filter((op) => op.type !== "setActiveCell");
+  if (contentOps.length > 0) {
+    statusText.textContent = "Updating\u2026";
+  }
   // Apply each operation without rebuilding unaffected cell DOM nodes.
   for (const op of ops) {
     switch (op.type) {
@@ -115,6 +121,7 @@ function applyPatch(ops, docVersion) {
   updateEmptyState();
   if (ops.some((op) => op.type !== "setActiveCell")) {
     renumberCrossRefs();
+    statusText.textContent = "Synced";
   }
   vscode.postMessage({ type: "ack", docVersion: state.docVersion });
 }
