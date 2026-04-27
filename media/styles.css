@@ -201,6 +201,33 @@ main {
   border-color: #d16969;
 }
 
+.output-html {
+  padding: 6px 2px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Style tables that come from HTML outputs (e.g. pandas DataFrames) */
+.output-html table {
+  border-collapse: collapse;
+  font-size: 0.9em;
+  margin: 0;
+}
+
+.output-html th,
+.output-html td {
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  text-align: right;
+}
+
+.output-html th {
+  background: #f5f6f7;
+  font-weight: 600;
+  text-align: center;
+}
+
 .cell-image {
   max-width: 100%;
   border: 1px solid var(--border);

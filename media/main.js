@@ -908,13 +908,17 @@ function renderOutputs(outputs, figDirectives) {
   const { cap, label } = figDirectives || {};
 
   const hasImage = outputs.some((o) => o.dataUri);
+  const hasHtml = outputs.some((o) => o.mime === "text/html");
 
   return outputs
     .filter((output) => {
-      // Suppress text/plain repr (e.g. "<Figure size 640x480 with 1 Axes>")
-      // when an image output is already present in the same cell.
-      // stdout (print statements) are kept regardless.
+      // Suppress text/plain repr when an image is already present.
       if (hasImage && output.mime === "text/plain" && !output.dataUri) {
+        return false;
+      }
+      // Suppress text/plain repr when a richer text/html output is present
+      // (e.g. pandas DataFrame renders both).
+      if (hasHtml && output.mime === "text/plain") {
         return false;
       }
       return true;
@@ -928,6 +932,10 @@ function renderOutputs(outputs, figDirectives) {
           return `<figure class="md-figure" role="group"${idAttr}>${imgHtml}${captionHtml}</figure>`;
         }
         return `<img class="cell-image" src="${output.dataUri}" alt="Notebook output" />`;
+      }
+
+      if (output.mime === "text/html") {
+        return `<div class="output-html">${output.text || ""}</div>`;
       }
 
       const safeText = escapeHtml(output.text || "");
