@@ -311,6 +311,28 @@ export class NotebookPreviewViewProvider {
       this.openInBrowser(message.renderedHtml);
       return;
     }
+
+    if (message.type === "fetchBib") {
+      this.handleFetchBib(message.keys);
+      return;
+    }
+  }
+
+  private async handleFetchBib(keys: string[]): Promise<void> {
+    const results: Record<string, { cite: string; linkLabel: string }> = {};
+    await Promise.all(keys.map(async (key) => {
+      try {
+        if (key.startsWith("doi:")) {
+          results[key] = await fetchDoiBib(key.slice(4));
+        } else if (key.startsWith("arxiv:")) {
+          results[key] = await fetchArxivBib(key.slice(6));
+        }
+      } catch (err) {
+        // leave key absent from results; webview will fall back to key display
+        console.warn(`[notebook-preview] fetchBib failed for ${key}:`, err);
+      }
+    }));
+    this.panel?.webview.postMessage({ type: "bibData", results } satisfies HostToWebviewMessage);
   }
 
   private openInBrowser(renderedHtml: string): void {
@@ -397,6 +419,11 @@ ${renderedHtml}
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/>
         <circle cx="8" cy="8" r="2"/>
+      </svg>
+    </button>
+    <button id="fetchBibButton" type="button" title="Fetch bibliography from CrossRef / arXiv">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783"/>
       </svg>
     </button>
     <span id="statusText">Idle</span>
@@ -572,3 +599,72 @@ function getNonce(): string {
 }
 
 const TEXT_DECODER = new TextDecoder();
+
+// ---------------------------------------------------------------------------
+// Bibliography fetch helpers (run in extension host — no CORS restrictions)
+// ---------------------------------------------------------------------------
+
+function httpsGet(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const https = require("https") as typeof import("https");
+    https.get(url, { headers: { "User-Agent": "vscode-notebook-preview/1.0" } }, (res: import("http").IncomingMessage) => {
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        resolve(httpsGet(res.headers.location));
+        return;
+      }
+      if (res.statusCode && res.statusCode >= 400) {
+        reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+        return;
+      }
+      const chunks: Buffer[] = [];
+      res.on("data", (c: Buffer) => chunks.push(c));
+      res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+      res.on("error", reject);
+    }).on("error", reject);
+  });
+}
+
+async function fetchDoiBib(doi: string): Promise<{ cite: string; linkLabel: string }> {
+  const url = `https://api.crossref.org/works/${encodeURIComponent(doi)}`;
+  const body = await httpsGet(url);
+  const data = JSON.parse(body) as { message: Record<string, unknown> };
+  const w = data.message;
+  const title = ((w.title as string[] | undefined)?.[0]) ?? "Untitled";
+  const rawAuthors = (w.author as Array<{ family?: string; given?: string; name?: string }> | undefined) ?? [];
+  const authors = rawAuthors.slice(0, 4).map(a =>
+    a.family ? (a.given ? `${a.given} ${a.family}` : a.family) : (a.name ?? "?")
+  );
+  if (rawAuthors.length > 4) { authors.push("et al."); }
+  const dateParts = (w.published as { "date-parts"?: number[][] } | undefined)?.["date-parts"]
+    ?? (w["published-print"] as { "date-parts"?: number[][] } | undefined)?.["date-parts"]
+    ?? (w["published-online"] as { "date-parts"?: number[][] } | undefined)?.["date-parts"];
+  const year = dateParts?.[0]?.[0] ?? "";
+  const journal = ((w["container-title"] as string[] | undefined)?.[0]) ?? "";
+  const volume = (w.volume as string | undefined) ?? "";
+  const pages = (w.page as string | undefined) ?? "";
+  const cite = (authors.length > 0 ? `${authors.join(", ")}. ` : "") + `\u201c${title}.\u201d`;
+  // Build journal-style link label: e.g. "Phys. Rev. X 8, 021013 (2018)"
+  let linkLabel = journal;
+  if (volume) { linkLabel += ` ${volume}`; }
+  if (pages) { linkLabel += `, ${pages}`; }
+  if (year) { linkLabel += ` (${year})`; }
+  if (!linkLabel.trim()) { linkLabel = `doi:${doi}`; }
+  return { cite: cite.trim(), linkLabel: linkLabel.trim() };
+}
+
+async function fetchArxivBib(id: string): Promise<{ cite: string; linkLabel: string }> {
+  const url = `https://export.arxiv.org/api/query?id_list=${encodeURIComponent(id)}`;
+  const xml = await httpsGet(url);
+  // Simple regex extraction — no DOM parser in Node context
+  const titleMatch = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(xml.slice(xml.indexOf("<entry")));
+  const title = (titleMatch?.[1] ?? "Untitled").trim().replace(/\s+/g, " ");
+  const authorMatches = [...xml.matchAll(/<name>([\s\S]*?)<\/name>/g)];
+  const authorNames = authorMatches.map(m => m[1].trim());
+  const authors = authorNames.slice(0, 4);
+  if (authorNames.length > 4) { authors.push("et al."); }
+  const publishedMatch = /<published>([\s\S]*?)<\/published>/i.exec(xml);
+  const year = publishedMatch?.[1]?.trim().slice(0, 4) ?? "";
+  const cite = (authors.length > 0 ? `${authors.join(", ")}. ` : "") + `\u201c${title}.\u201d`;
+  const linkLabel = year ? `arXiv:${id} (${year})` : `arXiv:${id}`;
+  return { cite: cite.trim(), linkLabel };
+}

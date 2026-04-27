@@ -18,7 +18,11 @@ const statusText = document.getElementById("statusText");
 const docHeader = document.getElementById("docHeader");
 const refreshButton = document.getElementById("refreshButton");
 const toggleFollowButton = document.getElementById("toggleFollowButton");
+const fetchBibButton = document.getElementById("fetchBibButton");
 const openInBrowserButton = document.getElementById("openInBrowserButton");
+
+/** cite key → formatted bibliography string (populated on demand) */
+const bibCache = new Map();
 
 refreshButton.addEventListener("click", () => {
   vscode.postMessage({ type: "requestFullSync" });
@@ -37,11 +41,44 @@ openInBrowserButton.addEventListener("click", () => {
   vscode.postMessage({ type: "openInBrowser", renderedHtml: headerHtml + visibleCells + refHtml });
 });
 
+fetchBibButton.addEventListener("click", () => {
+  const keys = [...new Set(
+    [...document.querySelectorAll(".cite-ref[data-cite-key]")].map(el => el.dataset.citeKey)
+  )];
+  if (keys.length === 0) {
+    statusText.textContent = "No citations found";
+    return;
+  }
+  const uncached = keys.filter(k => !bibCache.has(k));
+  if (uncached.length === 0) {
+    renumberCrossRefs();
+    return;
+  }
+  fetchBibButton.disabled = true;
+  statusText.textContent = `Fetching ${uncached.length} reference${uncached.length > 1 ? "s" : ""}\u2026`;
+  vscode.postMessage({ type: "fetchBib", keys: uncached });
+});
+
 window.addEventListener("message", (event) => {
   const message = event.data;
 
   if (message.type === "status") {
     statusText.textContent = message.text;
+    return;
+  }
+
+  if (message.type === "bibData") {
+    const results = message.results;
+    let fetched = 0;
+    for (const [key, entry] of Object.entries(results)) {
+      bibCache.set(key, entry); // { cite, linkLabel }
+      fetched++;
+    }
+    renumberCrossRefs();
+    fetchBibButton.disabled = false;
+    statusText.textContent = fetched > 0
+      ? `Fetched ${fetched} reference${fetched > 1 ? "s" : ""}`
+      : "Bibliography fetch failed";
     return;
   }
 
@@ -500,7 +537,13 @@ function renumberCrossRefs() {
     }
     el.target = "_blank";
     el.rel = "noopener noreferrer";
-    el.title = key; // tooltip on hover
+    // Tooltip: show formatted bib if fetched, otherwise show the key.
+    if (bibCache.has(key)) {
+      const e = bibCache.get(key);
+      el.title = `${e.cite} ${e.linkLabel}`;
+    } else {
+      el.title = key;
+    }
   }
 
   // Build / clear reference list
@@ -514,17 +557,21 @@ function renumberCrossRefs() {
       const entries = [...citeLabelMap.entries()].sort((a, b) => a[1] - b[1]);
       refList.innerHTML = `<h2 class="ref-heading">References</h2>` +
         entries.map(([key, num]) => {
-          let url, display;
+          let url, fallbackLinkLabel;
           if (key.startsWith("doi:")) {
             const doi = key.slice(4);
             url = `https://doi.org/${doi}`;
-            display = key;
+            fallbackLinkLabel = `doi:${doi}`;
           } else {
             const id = key.slice(6); // strip "arxiv:"
             url = `https://arxiv.org/abs/${id}`;
-            display = `arXiv:${id}`;
+            fallbackLinkLabel = `arXiv:${id}`;
           }
-          return `<div class="ref-entry" id="cite-entry-${num}"><span class="ref-number">[${num}]</span>\u00a0<a class="ref-link" href="${url}" target="_blank" rel="noopener noreferrer">${escapeHtml(display)}</a></div>`;
+          const cached = bibCache.get(key);
+          const citeText = cached ? escapeHtml(cached.cite) + " " : "";
+          const linkLabel = cached ? escapeHtml(cached.linkLabel) : escapeHtml(fallbackLinkLabel);
+          const link = `<a class="ref-link" href="${url}" target="_blank" rel="noopener noreferrer">${linkLabel}</a>`;
+          return `<div class="ref-entry" id="cite-entry-${num}"><span class="ref-number">[${num}]</span>\u00a0${citeText}${link}</div>`;
         }).join("");
     }
   }

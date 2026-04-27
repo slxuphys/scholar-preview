@@ -65,6 +65,10 @@ export type HostToWebviewMessage =
   | {
       type: "setConfig";
       followActiveCell: boolean;
+    }
+  | {
+      type: "bibData";
+      results: Record<string, { cite: string; linkLabel: string }>; // cite key → {authors+title, journal/id link label}
     };
 
 export type WebviewToHostMessage =
@@ -85,4 +89,8 @@ export type WebviewToHostMessage =
   | {
       type: "openInBrowser";
       renderedHtml: string;
+    }
+  | {
+      type: "fetchBib";
+      keys: string[]; // cite keys like "doi:10.xxx" or "arxiv:1234.5678"
     };
