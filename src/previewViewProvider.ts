@@ -388,6 +388,7 @@ ${renderedHtml}
 
   private getHtml(webview: vscode.Webview): string {
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "main.js"));
+    const mdRendererUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "markdown-renderer.js"));
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "styles.css"));
     const katexScriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "katex.min.js"));
     const katexStyleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "media", "katex.min.css"));
@@ -448,6 +449,7 @@ ${renderedHtml}
     };
   </script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
+  <script nonce="${nonce}" src="${mdRendererUri}"></script>
 </body>
 </html>`;
   }

@@ -514,3 +514,44 @@ figcaption {
   border-top: 1px solid #e5e7eb;
   margin: 1.5em 0;
 }
+
+/* ── GFM pipe tables ──────────────────────────────────────────────────────── */
+.markdown-table-wrap {
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.markdown-table-wrap table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.95em;
+}
+
+.markdown-table-wrap th,
+.markdown-table-wrap td {
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  vertical-align: top;
+}
+
+.markdown-table-wrap th {
+  background: var(--card);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.markdown-table-wrap tr:nth-child(even) td {
+  background: #fafbfc;
+}
+
+/* ── Task list items ──────────────────────────────────────────────────────── */
+li.task-item {
+  list-style: none;
+  margin-left: -1.4em;
+}
+
+.task-checkbox {
+  margin-right: 0.4em;
+  cursor: default;
+  vertical-align: middle;
+}
