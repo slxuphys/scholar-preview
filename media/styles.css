@@ -90,13 +90,13 @@ main {
 .cell-list {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: 2px;
 }
 
 .cell {
   border: 1px solid var(--border);
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
   background: #ffffff;
 }
 
@@ -164,7 +164,7 @@ main {
 }
 
 .cell-markdown .cell-body {
-  padding: 8px 2px;
+  padding: 2px 0;
 }
 
 .code-source {
@@ -380,14 +380,17 @@ figcaption {
 .katex-display {
   margin: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: clip;
+  padding: 2px 0;
 }
 
 /* KaTeX display equation with right-aligned number */
 .katex-display-eq {
   display: flex;
-  align-items: baseline;
-  margin: 0.5em 0;
+  align-items: center;
+  margin: 0.6em 0;
+  padding: 2px 0;
+  overflow: visible;
 }
 
 .katex-display-content {
@@ -441,23 +444,42 @@ figcaption {
 .markdown-content h4,
 .markdown-content h5,
 .markdown-content h6 {
-  margin: 1.25em 0 0.55em;
-  line-height: 1.2;
+  margin: 0.7em 0 0.25em;
+  line-height: 1.15;
   font-family: "Crimson Text", Georgia, serif;
   font-weight: 700;
   color: #111827;
 }
 
-.markdown-content h1 {
-  font-size: 2rem;
+/* First heading in a cell gets no top margin (flush with cell top) */
+.markdown-content > h1:first-child,
+.markdown-content > h2:first-child,
+.markdown-content > h3:first-child,
+.markdown-content > h4:first-child,
+.markdown-content > h5:first-child,
+.markdown-content > h6:first-child {
+  margin-top: 0;
 }
 
-.markdown-content h2 {
+.markdown-content h1 {
   font-size: 1.6rem;
 }
 
+.markdown-content h2 {
+  font-size: 1.35rem;
+}
+
 .markdown-content h3 {
-  font-size: 1.3rem;
+  font-size: 1.15rem;
+}
+
+.markdown-content h4 {
+  font-size: 1.05rem;
+}
+
+.markdown-content h5,
+.markdown-content h6 {
+  font-size: 1rem;
 }
 
 .markdown-content p,
@@ -465,7 +487,7 @@ figcaption {
 .markdown-content ol,
 .markdown-content blockquote,
 .markdown-content pre {
-  margin: 0 0 1em;
+  margin: 0 0 0.55em;
 }
 
 .markdown-content ul,
