@@ -369,6 +369,9 @@ function renderMarkdownCell(source) {
     }
 
     // ── Default: paragraph accumulation (raw, to preserve trailing spaces) ──
+    // Flush any open list before starting a paragraph — without a blank line
+    // separator a plain line following list items must still appear after them.
+    flushList(); flushBlockquote(); flushTable();
     paragraph.push(line);
   }
 

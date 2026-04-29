@@ -383,17 +383,14 @@ function shouldRenderCodeSource(cell) {
 }
 
 function getEchoDirective(source) {
-  const lines = String(source || "").split(/\r?\n/);
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed === "") {
-      continue;
+  // Scan all lines for a #| echo: on/off directive (Quarto allows directives
+  // anywhere in the cell, not just at the top).
+  for (const line of String(source || "").split(/\r?\n/)) {
+    const match = /^#\|\s*echo\s*:\s*(on|off)\s*$/i.exec(line.trim());
+    if (match) {
+      return match[1].toLowerCase();
     }
-
-    const match = /^#\|\s*echo\s*:\s*(on|off)\s*$/i.exec(trimmed);
-    return match ? match[1].toLowerCase() : undefined;
   }
-
   return undefined;
 }
 
