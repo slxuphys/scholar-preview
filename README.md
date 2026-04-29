@@ -96,6 +96,23 @@ npm run compile
 # Press F5 in VS Code to launch Extension Development Host
 ```
 
+## Comparison with Quarto
+
+| Aspect | This extension | Quarto |
+|---|---|---|
+| **Trigger** | Live — re-renders on every keystroke/cell save | `quarto preview` polls file changes; full re-render on save |
+| **Code execution** | None — reads already-executed outputs from `.ipynb` kernel state | Executes code cells via Jupyter / Knitr / Observable kernels |
+| **Renderer** | Custom JS markdown parser + KaTeX + highlight.js | Pandoc (full CommonMark + extensions) |
+| **Math** | KaTeX (client-side) | KaTeX or MathJax (configurable) |
+| **Cross-refs** | `{#sec-}`, `{#fig-}`, `{#eq-}` resolved across cells | Full `@sec-`, `@fig-`, `@eq-` resolution across files via Pandoc filter |
+| **Bibliography** | CrossRef / arXiv fetch on demand, rendered inline | Pandoc + BibTeX / CSL — full citation processor |
+| **Output formats** | Live HTML webview only | HTML, PDF (LaTeX or Typst), Word, RevealJS, epub, … |
+| **Directives** | Subset: `#\| echo:`, `#\| fig-cap:`, `#\| fig-label:` | Full set: `#\| eval:`, `#\| include:`, `#\| layout:`, … |
+| **Latency** | ~ms — incremental DOM patch, no re-execution | Seconds — full Pandoc + Jupyter re-run per save |
+| **Multi-file** | Single notebook only | Projects, books, websites across many files |
+
+The extension is optimised for **speed** — you see changes as you type with no re-execution cost. Quarto is optimised for **fidelity** — publication-quality output across many formats. They complement each other: iterate here, render final output with Quarto.
+
 ## Requirements
 
 - VS Code 1.90+
