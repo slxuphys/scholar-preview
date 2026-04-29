@@ -35,6 +35,11 @@ body {
   backdrop-filter: blur(10px);
 }
 
+/* Offset anchor targets so the sticky toolbar doesn't cover them on scroll */
+[id] {
+  scroll-margin-top: 52px;
+}
+
 .toolbar button {
   border: 1px solid var(--border);
   background: var(--card);
@@ -154,7 +159,7 @@ main {
 
 .cell-body,
 .cell-outputs {
-  padding: 10px;
+  padding: 10px 10px 0;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -577,3 +582,61 @@ li.task-item {
   cursor: default;
   vertical-align: middle;
 }
+
+/* ── Table of contents overlay ───────────────────────────────────────── */
+
+#tocButton[aria-expanded="true"] {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+#tocPanel {
+  position: fixed;
+  top: 44px;          /* just below the toolbar */
+  left: 0;
+  width: 280px;
+  max-height: calc(100vh - 56px);
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-top: none;
+  border-radius: 0 0 8px 0;
+  box-shadow: 4px 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  padding: 8px 0 12px;
+}
+
+#tocPanel[hidden] {
+  display: none;
+}
+
+.toc-item {
+  display: block;
+  width: 100%;
+  padding: 3px 16px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.82rem;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.5;
+}
+
+.toc-item:hover {
+  background: var(--card);
+  color: var(--accent);
+}
+
+.toc-item[data-level="1"] { padding-left: 16px; font-weight: 600; }
+.toc-item[data-level="2"] { padding-left: 28px; }
+.toc-item[data-level="3"] { padding-left: 40px; }
+.toc-item[data-level="4"] { padding-left: 52px; font-size: 0.78rem; color: var(--muted); }
+.toc-item[data-level="5"] { padding-left: 64px; font-size: 0.78rem; color: var(--muted); }
+.toc-item[data-level="6"] { padding-left: 76px; font-size: 0.78rem; color: var(--muted); }

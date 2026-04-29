@@ -18,6 +18,8 @@ const statusText = document.getElementById("statusText");
 const docHeader = document.getElementById("docHeader");
 const refreshButton = document.getElementById("refreshButton");
 const toggleFollowButton = document.getElementById("toggleFollowButton");
+const tocButton = document.getElementById("tocButton");
+const tocPanel = document.getElementById("tocPanel");
 const fetchBibButton = document.getElementById("fetchBibButton");
 const openInBrowserButton = document.getElementById("openInBrowserButton");
 
@@ -31,6 +33,76 @@ refreshButton.addEventListener("click", () => {
 toggleFollowButton.addEventListener("click", () => {
   vscode.postMessage({ type: "toggleFollowActiveCell" });
 });
+
+tocButton.addEventListener("click", () => {
+  const isOpen = !tocPanel.hidden;
+  if (isOpen) {
+    closeToc();
+  } else {
+    openToc();
+  }
+});
+
+// Close TOC when clicking outside it
+document.addEventListener("click", (e) => {
+  if (!tocPanel.hidden && !tocPanel.contains(e.target) && e.target !== tocButton) {
+    closeToc();
+  }
+}, true);
+
+// Close TOC on Escape
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !tocPanel.hidden) { closeToc(); }
+});
+
+function openToc() {
+  rebuildToc();
+  tocPanel.hidden = false;
+  tocButton.setAttribute("aria-expanded", "true");
+}
+
+function closeToc() {
+  tocPanel.hidden = true;
+  tocButton.setAttribute("aria-expanded", "false");
+}
+
+function rebuildToc() {
+  tocPanel.innerHTML = "";
+  /** @type {Array<{level: number, numStr: string, text: string, id: string|null, el: Element}>} */
+  const entries = [];
+
+  for (const numEl of document.querySelectorAll(".sec-number[data-sec-level]")) {
+    const heading = numEl.closest("h1, h2, h3, h4, h5, h6");
+    if (!heading) { continue; }
+    const level = parseInt(numEl.dataset.secLevel, 10);
+    const numStr = numEl.textContent.trim();
+    // Heading text without the number prefix
+    const text = heading.textContent.replace(numEl.textContent, "").trim();
+    const id = heading.id || null;
+    entries.push({ level, numStr, text, id, el: heading });
+  }
+
+  if (entries.length === 0) {
+    const empty = document.createElement("span");
+    empty.style.cssText = "display:block;padding:8px 16px;color:var(--muted);font-size:0.82rem";
+    empty.textContent = "No headings found";
+    tocPanel.appendChild(empty);
+    return;
+  }
+
+  for (const { level, numStr, text, id, el } of entries) {
+    const btn = document.createElement("button");
+    btn.className = "toc-item";
+    btn.dataset.level = String(level);
+    btn.title = (numStr ? numStr + "\u00a0" : "") + text;
+    btn.textContent = (numStr ? numStr + "\u00a0\u00a0" : "") + text;
+    btn.addEventListener("click", () => {
+      closeToc();
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    tocPanel.appendChild(btn);
+  }
+}
 
 openInBrowserButton.addEventListener("click", () => {
   const refList = document.getElementById("referenceList");
