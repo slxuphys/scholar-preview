@@ -1,65 +1,72 @@
 # Notebook Preview
 
-A VS Code extension that opens a live, typeset preview of a Jupyter notebook (or standalone Markdown file) in a side panel. The preview updates incrementally as you edit, renders math, code, figures, and cross-references, and can export a self-contained HTML page for printing.
+A VS Code extension that opens a live, typeset preview of a Jupyter notebook (or standalone Markdown file) in a side panel.  Two preview modes are available:
+
+- **HTML preview** — fast incremental preview with KaTeX math, syntax highlighting, and cross-references, rendered directly in the webview.
+- **Typst paged preview** — high-fidelity paged preview (A4) driven by [Typst](https://typst.app/), with numbered equations, figure captions, cross-references, and PDF export.
 
 ## Features
 
-### Live Preview
+### HTML Live Preview
 - Opens beside the active `.ipynb` or `.md` file via the notebook/editor title-bar button.
-- Incremental patch protocol — only changed cells are re-rendered (O(changed cells)).
+- Incremental patch protocol — only changed cells are re-rendered.
 - Active-cell highlight syncs with notebook selection; click any cell in the preview to navigate back.
-- Preview is preserved when switching to unrelated editors (Python, JSON, etc.).
+- Preview is preserved when switching to unrelated editors.
+
+### Typst Paged Preview
+- Opens as a separate side panel via **"Notebook Preview: Open Typst Paged Preview"** in the Command Palette or the notebook title-bar button.
+- Continuous live updates via `typst watch` — pages update automatically as you edit, with no blink (images swapped in-place).
+- **Export to PDF** button — runs `typst compile` and opens the PDF.
+- **Download `.typ` source** button — saves the generated Typst file for further editing.
 
 ### Markdown Rendering
-- Full-featured handwritten Markdown renderer: headings, lists, blockquotes, bold/italic, inline code, fenced code blocks, links, images, and horizontal rules.
-- Syntax highlighting for code cells via **highlight.js**.
-- Serif body text via **Crimson Text** (Google Fonts).
+- Headings, lists, blockquotes, bold/italic, inline code, fenced code blocks, links, images, horizontal rules.
+- YAML front matter rendered as a centred title block (title, author, affiliation, date).
+- Quarto `#|` cell directives parsed: `echo`, `fig-cap`, `label`, `fig-label`.
 
-### Math (KaTeX)
+### Math
 - Inline math: `$...$`
-- Display math: `$$...$$`
-- Numbered equations with `@eq-label` cross-references resolved across all cells.
+- Display math: `$$...$$` (multi-line supported)
+- Numbered equations with `@label` cross-references.
+- Rendered via **KaTeX** (HTML preview) or **mitex** (Typst preview).
 
-### Cross-References
-| Syntax | Resolves to |
+### Cross-References (Typst preview)
+| Syntax | Renders as |
 |---|---|
-| `@eq-label` | Eq. (N) |
-| `@fig-label` | Fig. N |
-| `@sec-label` | Section N / N.M |
+| `@eq-label` | Eq. (N) with hyperlink |
+| `@fig-label` | Fig. N with hyperlink |
+| `@any-label` | Default Typst reference |
 
-### Section & Figure Numbering
-- Headings (`#`, `##`, `###`) are auto-numbered (e.g. 1, 1.2, 1.2.3) with muted prefix.
-- Figures declared with `<!-- fig: label "Caption" -->` are numbered sequentially.
-
-### Citations
-- `@doi:10.xxxx/yyyy` — DOI citation, linked to `doi.org`.
-- `@arxiv:NNNN.NNNNN` — arXiv citation, linked to `arxiv.org`.
-- Inline markers rendered as superscript `[N]` with deduplication.
-- Auto-generated **References** section at the bottom.
-
-### Bibliography Fetch (book icon)
-Click the book icon in the toolbar to fetch full metadata for all cited works:
-- CrossRef API for DOI citations → formats as *Authors. "Title." Journal Vol, Pages (Year).*
-- arXiv API for arXiv citations → formats as *Authors. "Title." arXiv:NNNN.NNNNN (Year).*
-- Fetching runs in the extension host (no CORS issues).
-- Results are cached for the session; hover any `[N]` inline citation to see the full entry.
+### Quarto Directives (`#|`)
+| Directive | Effect |
+|---|---|
+| `#\| echo: false` / `off` | Hides source code block |
+| `#\| fig-cap: "..."` | Figure caption in `#figure(...)` |
+| `#\| label: "fig-..."` | Figure label for cross-references |
+| `#\| fig-label: "..."` | Alternative label key |
 
 ### YAML Front Matter
 Add a metadata block to the first Markdown cell:
 ```yaml
 ---
-title: "My Research Paper"
-author: "Jane Smith"
-date: "April 2026"
+title: Non-Equilibrium Statistical Mechanics
+author: John Smith
+affiliation: Department of Physics, University of XYZ
+date: 2024-06-01
 ---
 ```
-Renders as a centred title block above all cells. The raw YAML cell is hidden from the preview.
+Renders as a centred title block. The raw `---` block is stripped from the preview.
 
-### Open in Browser
-Export a fully self-contained HTML page (styles + rendered content) for printing or sharing. The exported page includes the doc header, all visible cells, and the reference list.
+### HTML Preview — Additional Features
+- Syntax highlighting via **highlight.js**.
+- Serif body text via **Crimson Text** (Google Fonts).
+- `@doi:10.xxxx/yyyy` / `@arxiv:NNNN.NNNNN` inline citations with bibliography fetch.
+- Section and figure auto-numbering with `{#sec-}` / `{#fig-}` anchors.
+- Export to browser for printing (fully self-contained HTML).
 
 ## Toolbar Buttons
 
+### HTML Preview
 | Icon | Action |
 |---|---|
 | ↻ Refresh | Force full re-sync |
@@ -67,25 +74,41 @@ Export a fully self-contained HTML page (styles + rendered content) for printing
 | 📖 Fetch bib | Fetch bibliography metadata |
 | ↗ Open | Export to browser for printing |
 
-## Syntax Quick Reference
+### Typst Preview
+| Icon | Action |
+|---|---|
+| ↻ Recompile | Force recompile |
+| ↓ Export PDF | Run `typst compile` and open PDF |
+| ☁ Download `.typ` | Save generated Typst source |
+
+## Quick Reference
 
 ```markdown
 ---
 title: My Paper
 author: Jane Smith
+affiliation: MIT
 date: 2026
 ---
 
-# Introduction {#sec-intro}
+# Introduction
 
-See @sec-intro or @eq-energy or @fig-results.
+Display math with label:
 
-$$E = mc^2 \tag{eq-energy}$$
+$$
+E = mc^2
+$$ {#eq-energy}
 
-<!-- fig: results "Figure 1 caption" -->
-![](path/to/image.png)
+Cross-reference: see @eq-energy.
+```
 
-Cite a DOI @doi:10.1103/PhysRevX.8.021013 or arXiv paper @arxiv:2101.00004.
+```python
+#| echo: false
+#| fig-cap: "Normal distribution PDF"
+#| label: "fig-normal"
+
+import matplotlib.pyplot as plt
+# ... plot code ...
 ```
 
 ## Run Locally
@@ -96,25 +119,24 @@ npm run compile
 # Press F5 in VS Code to launch Extension Development Host
 ```
 
-## Comparison with Quarto
-
-| Aspect | This extension | Quarto |
-|---|---|---|
-| **Trigger** | Live — re-renders on every keystroke/cell save | `quarto preview` polls file changes; full re-render on save |
-| **Code execution** | None — reads already-executed outputs from `.ipynb` kernel state | Executes code cells via Jupyter / Knitr / Observable kernels |
-| **Renderer** | Custom JS markdown parser + KaTeX + highlight.js | Pandoc (full CommonMark + extensions) |
-| **Math** | KaTeX (client-side) | KaTeX or MathJax (configurable) |
-| **Cross-refs** | `{#sec-}`, `{#fig-}`, `{#eq-}` resolved across cells | Full `@sec-`, `@fig-`, `@eq-` resolution across files via Pandoc filter |
-| **Bibliography** | CrossRef / arXiv fetch on demand, rendered inline | Pandoc + BibTeX / CSL — full citation processor |
-| **Output formats** | Live HTML webview only | HTML, PDF (LaTeX or Typst), Word, RevealJS, epub, … |
-| **Directives** | Subset: `#\| echo:`, `#\| fig-cap:`, `#\| fig-label:` | Full set: `#\| eval:`, `#\| include:`, `#\| layout:`, … |
-| **Latency** | ~ms — incremental DOM patch, no re-execution | Seconds — full Pandoc + Jupyter re-run per save |
-| **Multi-file** | Single notebook only | Projects, books, websites across many files |
-
-The extension is optimised for **speed** — you see changes as you type with no re-execution cost. Quarto is optimised for **fidelity** — publication-quality output across many formats. They complement each other: iterate here, render final output with Quarto.
-
 ## Requirements
 
 - VS Code 1.90+
 - Node.js (for compilation)
-- Internet access for bibliography fetching (CrossRef / arXiv APIs)
+- [Typst](https://typst.app/) on your `PATH` (for Typst paged preview and PDF export)
+- Internet access for bibliography fetching (HTML preview, CrossRef / arXiv APIs)
+
+## Comparison with Quarto
+
+| Aspect | This extension | Quarto |
+|---|---|---|
+| **Trigger** | Live — re-renders on every keystroke/cell save | `quarto preview` polls file changes |
+| **Code execution** | None — reads already-executed outputs from `.ipynb` | Executes code cells via Jupyter / Knitr |
+| **Math** | KaTeX (HTML) / mitex (Typst) | KaTeX or MathJax |
+| **Cross-refs** | `@label` resolved in Typst preview | Full Pandoc filter across files |
+| **Output formats** | Live HTML webview + Typst PDF | HTML, PDF (LaTeX/Typst), Word, RevealJS, … |
+| **Latency** | ~ms incremental | Seconds — full Pandoc + Jupyter re-run |
+| **Multi-file** | Single notebook | Projects, books, websites |
+
+The extension is optimised for **speed** — you see changes as you type with no re-execution cost. Quarto is optimised for **fidelity** — publication-quality output across many formats. They complement each other: iterate here, render final output with Quarto.
+

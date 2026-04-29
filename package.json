@@ -30,6 +30,11 @@
         "command": "notebookPreview.refreshPreview",
         "category": "Notebook Preview",
         "title": "Notebook Preview: Refresh Preview"
+      },
+      {
+        "command": "notebookPreview.openTypstPreview",
+        "category": "Notebook Preview",
+        "title": "Notebook Preview: Open Typst Paged Preview"
       }
     ],
     "menus": {
@@ -42,6 +47,9 @@
         },
         {
           "command": "notebookPreview.refreshPreview"
+        },
+        {
+          "command": "notebookPreview.openTypstPreview"
         }
       ],
       "editor/title": [
@@ -55,6 +63,10 @@
         {
           "command": "notebookPreview.openSidepanePreview",
           "group": "navigation@10"
+        },
+        {
+          "command": "notebookPreview.openTypstPreview",
+          "group": "navigation@11"
         }
       ]
     },
