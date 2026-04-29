@@ -22,6 +22,13 @@ const tocButton = document.getElementById("tocButton");
 const tocPanel = document.getElementById("tocPanel");
 const fetchBibButton = document.getElementById("fetchBibButton");
 const openInBrowserButton = document.getElementById("openInBrowserButton");
+const togglePageModeButton = document.getElementById("togglePageModeButton");
+const pagedOutput = document.getElementById("pagedOutput");
+
+/** @type {boolean} Whether paged.js page mode is active */
+let pageMode = false;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let _pagedRenderTimeout = null;
 
 /** cite key → formatted bibliography string (populated on demand) */
 const bibCache = new Map();
@@ -113,6 +120,92 @@ openInBrowserButton.addEventListener("click", () => {
   vscode.postMessage({ type: "openInBrowser", renderedHtml: headerHtml + visibleCells + refHtml });
 });
 
+togglePageModeButton.addEventListener("click", () => {
+  pageMode = !pageMode;
+  togglePageModeButton.setAttribute("aria-pressed", String(pageMode));
+  if (pageMode) {
+    enterPageMode();
+  } else {
+    exitPageMode();
+  }
+});
+
+/**
+ * Build a snapshot element of the current rendered content for paged.js.
+ * @returns {HTMLElement}
+ */
+function _buildPagedSource() {
+  const src = document.createElement("div");
+  if (docHeader && !docHeader.hidden) {
+    src.appendChild(docHeader.cloneNode(true));
+  }
+  for (const id of state.cellOrder) {
+    const node = state.nodeById.get(id);
+    if (node && !node.hidden) {
+      src.appendChild(node.cloneNode(true));
+    }
+  }
+  const referenceList = document.getElementById("referenceList");
+  if (referenceList && !referenceList.hidden) {
+    src.appendChild(referenceList.cloneNode(true));
+  }
+  return src;
+}
+
+async function enterPageMode() {
+  // Cancel any pending debounced render
+  if (_pagedRenderTimeout !== null) {
+    clearTimeout(_pagedRenderTimeout);
+    _pagedRenderTimeout = null;
+  }
+
+  statusText.textContent = "Paginating\u2026";
+
+  const src = _buildPagedSource();
+
+  // Collect stylesheet hrefs from document (katex, highlight, main styles)
+  const styleSheets = Array.from(document.querySelectorAll("link[rel=stylesheet]"))
+    .map(l => l.href)
+    .filter(Boolean);
+
+  // Show canvas, hide flow content
+  document.querySelector("main").classList.add("page-mode");
+  pagedOutput.hidden = false;
+  pagedOutput.innerHTML = "";
+
+  try {
+    /* global PagedJS */
+    const previewer = new PagedJS.Previewer();
+    await previewer.preview(src, styleSheets, pagedOutput);
+    const pageCount = pagedOutput.querySelectorAll(".pagedjs_page").length;
+    statusText.textContent = `${pageCount} page${pageCount !== 1 ? "s" : ""}`;
+  } catch (err) {
+    console.error("paged.js error:", err);
+    statusText.textContent = "Pagination error";
+  }
+}
+
+function exitPageMode() {
+  if (_pagedRenderTimeout !== null) {
+    clearTimeout(_pagedRenderTimeout);
+    _pagedRenderTimeout = null;
+  }
+  document.querySelector("main").classList.remove("page-mode");
+  pagedOutput.hidden = true;
+  pagedOutput.innerHTML = "";
+  statusText.textContent = "Synced";
+}
+
+/** Schedule a debounced re-render when in page mode (called after patch/fullSync). */
+function _schedulePagedRender() {
+  if (!pageMode) { return; }
+  if (_pagedRenderTimeout !== null) { clearTimeout(_pagedRenderTimeout); }
+  _pagedRenderTimeout = setTimeout(() => {
+    _pagedRenderTimeout = null;
+    if (pageMode) { enterPageMode(); }
+  }, 800);
+}
+
 fetchBibButton.addEventListener("click", () => {
   const keys = [...new Set(
     [...document.querySelectorAll(".cite-ref[data-cite-key]")].map(el => el.dataset.citeKey)
@@ -198,6 +291,7 @@ function applyFullSync(snapshot, notebookDir) {
   renumberCrossRefs();
   statusText.textContent = "Synced";
   vscode.postMessage({ type: "ack", docVersion: state.docVersion });
+  _schedulePagedRender();
 }
 
 function applyPatch(ops, docVersion) {
@@ -238,6 +332,7 @@ function applyPatch(ops, docVersion) {
     statusText.textContent = "Synced";
   }
   vscode.postMessage({ type: "ack", docVersion: state.docVersion });
+  _schedulePagedRender();
 }
 
 function insertCells(at, cells) {
