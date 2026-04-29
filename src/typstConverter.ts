@@ -1,6 +1,35 @@
 import * as fs from "fs";
 import * as path from "path";
 import { CellSnapshot, NotebookSnapshot, OutputSnapshot } from "./protocol";
+import { bibKeyForDoi, bibKeyForArxiv } from "./bibFetch";
+
+export interface CitationRef {
+  type: "arxiv" | "doi";
+  /** Raw ID as written by the user, e.g. "2604.24784" or "10.1103/PhysRevX.8.021013" */
+  id: string;
+  /** Sanitised BibTeX / Typst cite key, e.g. "arxiv_2604_24784" */
+  key: string;
+}
+
+/** Scan all markdown cells in a snapshot for @arxiv:ID and @doi:ID citations. */
+export function collectCitationKeys(snapshot: NotebookSnapshot): CitationRef[] {
+  const seen = new Set<string>();
+  const result: CitationRef[] = [];
+  for (const id of snapshot.cellOrder) {
+    const cell = snapshot.cells[id];
+    if (!cell) { continue; }
+    for (const m of cell.source.matchAll(/@(arxiv|doi):([^\s,;)\]"]+)/g)) {
+      const type = m[1] as "arxiv" | "doi";
+      const rawId = m[2];
+      const key = type === "doi" ? bibKeyForDoi(rawId) : bibKeyForArxiv(rawId);
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push({ type, id: rawId, key });
+      }
+    }
+  }
+  return result;
+}
 
 /** Convert a notebook snapshot to Typst markup, writing image assets into tmpDir. */
 export function snapshotToTypst(snapshot: NotebookSnapshot, tmpDir: string): string {
@@ -333,6 +362,24 @@ function convertMarkdownLine(line: string): string {
     return ol[1] + "+ " + convertInline(ol[2]);
   }
 
+  // Standalone image line: ![alt](src) or ![alt](src){#label width=80% fig-cap="..."}
+  const standaloneImg = line.match(/^!\[([^\]]*)\]\(([^)]+)\)(\{[^}]*\})?\s*$/);
+  if (standaloneImg) {
+    const [, alt, src, attrs] = standaloneImg;
+    const label = attrs?.match(/#([a-zA-Z][a-zA-Z0-9_-]*)/)?.[1];
+    const capMatch = attrs?.match(/fig-cap(?:tion)?\s*=\s*"([^"]*)"/i);
+    const caption = capMatch?.[1] ?? alt;
+    const widthMatch = attrs?.match(/width\s*=\s*["']?([^"'\s}]+)["']?/i);
+    const width = widthMatch ? widthMatch[1] : (label ? "100%" : "auto");
+    // Typst expects a ratio for percentages: 80% → 80%  (valid Typst syntax)
+    const widthExpr = width === "auto" ? "auto" : `${width}`;
+    if (label) {
+      const capTypst = caption ? `[${caption}]` : `[]`;
+      return `#figure(image("${escStr(src)}", width: ${widthExpr}), caption: ${capTypst}) <${label}>`;
+    }
+    return `#align(center)[#image("${escStr(src)}", width: ${widthExpr})]`;
+  }
+
   return convertInline(line);
 }
 
@@ -357,8 +404,8 @@ function convertInline(text: string): string {
   // Inline math ($...$)
   r = r.replace(/\$([^$\n]+)\$/g, (_, m) => protect(`#mi("${escLatex(m)}")`) );
 
-  // Images: ![alt](url)
-  r = r.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, _alt, url) =>
+  // Images: ![alt](url) — inline context; strip any trailing {#...} attribute
+  r = r.replace(/!\[([^\]]*)\]\(([^)]+)\)(\{[^}]*\})?/g, (_, _alt, url) =>
     protect(`#image("${escStr(url)}")`)
   );
 
@@ -382,6 +429,12 @@ function convertInline(text: string): string {
 
   // Strikethrough: ~~text~~
   r = r.replace(/~~([^~\n]+)~~/g, (_, t) => `#strike[${t}]`);
+
+  // Bibliography citations: @arxiv:ID or @doi:ID → safe Typst cite key (before generic @label)
+  r = r.replace(/@(arxiv|doi):([^\s,;)\]"]+)/g, (_, type, rawId) => {
+    const key = type === "doi" ? bibKeyForDoi(rawId) : bibKeyForArxiv(rawId);
+    return protect(`@${key}`);
+  });
 
   // Quarto/Pandoc cross-references: @label → Typst @label (protect before escaping)
   r = r.replace(/@([a-zA-Z][a-zA-Z0-9_-]*)/g, (_, label) => protect(`@${label}`));

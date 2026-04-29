@@ -47,6 +47,61 @@ body {
   font-size: 11px;
 }
 
+/* ── Dropdown menu ────────────────────────────────────────── */
+.dropdown {
+  position: relative;
+}
+
+.dropdown > button {
+  display: flex;
+  align-items: center;
+  width: auto;
+  padding: 0 4px;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  min-width: 160px;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--vscode-menu-background, #252526);
+  border: 1px solid var(--vscode-menu-border, rgba(127,127,127,0.35));
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.dropdown-menu li button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--vscode-menu-foreground, #cccccc);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dropdown-menu li button svg {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.dropdown-menu li button:hover {
+  background: var(--vscode-menu-selectionBackground, #094771);
+  color: var(--vscode-menu-selectionForeground, #ffffff);
+}
+
 /* Subtle pulse on the status text while recompiling — no layout change */
 .toolbar.compiling #statusText {
   opacity: 1;

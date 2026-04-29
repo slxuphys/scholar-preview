@@ -8,12 +8,38 @@
     vscode.postMessage({ type: "recompile" });
   });
 
-  document.getElementById("exportPdfBtn").addEventListener("click", () => {
-    vscode.postMessage({ type: "exportPdf" });
+  // Download dropdown
+  const downloadMenuBtn = document.getElementById("downloadMenuBtn");
+  const dropdownMenu = downloadMenuBtn.nextElementSibling;
+
+  downloadMenuBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = !dropdownMenu.hidden;
+    dropdownMenu.hidden = open;
+    downloadMenuBtn.setAttribute("aria-expanded", String(!open));
   });
 
-  document.getElementById("downloadTypBtn").addEventListener("click", () => {
-    vscode.postMessage({ type: "downloadTyp" });
+  dropdownMenu.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) { return; }
+    dropdownMenu.hidden = true;
+    downloadMenuBtn.setAttribute("aria-expanded", "false");
+    vscode.postMessage({ type: btn.dataset.action });
+  });
+
+  document.addEventListener("click", () => {
+    if (!dropdownMenu.hidden) {
+      dropdownMenu.hidden = true;
+      downloadMenuBtn.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  // Close on Escape
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !dropdownMenu.hidden) {
+      dropdownMenu.hidden = true;
+      downloadMenuBtn.setAttribute("aria-expanded", "false");
+    }
   });
 
   window.addEventListener("message", (event) => {

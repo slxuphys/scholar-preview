@@ -57,6 +57,22 @@ date: 2024-06-01
 ```
 Renders as a centred title block. The raw `---` block is stripped from the preview.
 
+### Bibliography Auto-Fetch
+Both preview modes resolve `@doi:…` and `@arxiv:…` citations automatically — no manual `.bib` file required.
+
+| Syntax | Source | Example |
+|---|---|---|
+| `@arxiv:NNNN.NNNNN` | arXiv Atom API | `@arxiv:2307.09288` |
+| `@doi:10.xxxx/yyyy` | CrossRef REST API | `@doi:10.1038/s41586-021-03819-2` |
+
+**How it works:**
+1. On every recompile the extension scans all cells for `@arxiv:…` / `@doi:…` patterns.
+2. Uncached entries are fetched from the respective API (arXiv or CrossRef) and converted to BibTeX.
+3. A `refs.bib` file is written to the temp directory and `#bibliography("refs.bib", style: "ieee")` is appended to the Typst source automatically.
+4. Fetched entries are cached for the lifetime of the preview panel — repeated edits do not trigger additional network requests.
+
+Citation keys are derived deterministically: `arxiv_2307_09288`, `doi_10_1038_s41586_021_03819_2`, etc.
+
 ### HTML Preview — Additional Features
 - Syntax highlighting via **highlight.js**.
 - Serif body text via **Crimson Text** (Google Fonts).
@@ -75,11 +91,13 @@ Renders as a centred title block. The raw `---` block is stripped from the previ
 | ↗ Open | Export to browser for printing |
 
 ### Typst Preview
-| Icon | Action |
+| Control | Action |
 |---|---|
 | ↻ Recompile | Force recompile |
-| ↓ Export PDF | Run `typst compile` and open PDF |
-| ☁ Download `.typ` | Save generated Typst source |
+| ↓ ▾ Download menu | Opens a dropdown with three options: |
+| &nbsp;&nbsp;&nbsp;Export PDF | Run `typst compile` and open the PDF |
+| &nbsp;&nbsp;&nbsp;Download `.typ` | Save the generated Typst source file |
+| &nbsp;&nbsp;&nbsp;Download `.bib` | Save the auto-fetched BibTeX bibliography |
 
 ## Quick Reference
 
@@ -111,6 +129,15 @@ import matplotlib.pyplot as plt
 # ... plot code ...
 ```
 
+Inline citations (fetched automatically at preview time):
+
+```markdown
+Attention is all you need @arxiv:1706.03762.
+See also @doi:10.1038/s41586-021-03819-2 for context.
+```
+
+A `refs.bib` is generated and a bibliography section is appended automatically.
+
 ## Run Locally
 
 ```bash
@@ -124,7 +151,7 @@ npm run compile
 - VS Code 1.90+
 - Node.js (for compilation)
 - [Typst](https://typst.app/) on your `PATH` (for Typst paged preview and PDF export)
-- Internet access for bibliography fetching (HTML preview, CrossRef / arXiv APIs)
+- Internet access for bibliography fetching (CrossRef / arXiv APIs)
 
 ## Comparison with Quarto
 
