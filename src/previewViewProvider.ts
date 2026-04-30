@@ -16,13 +16,13 @@ import {
 export class NotebookPreviewViewProvider {
   private panel?: vscode.WebviewPanel;
   private snapshot?: NotebookSnapshot;
-  private followActiveCell = vscode.workspace.getConfiguration().get<boolean>("notebookPreview.followActiveCell", true);
+  private followActiveCell = vscode.workspace.getConfiguration().get<boolean>("scholarPreview.followActiveCell", true);
   private statusBar: vscode.StatusBarItem;
   private disposables: vscode.Disposable[] = [];
 
   constructor(private readonly extensionUri: vscode.Uri) {
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-    this.statusBar.command = "notebookPreview.openSidepanePreview";
+    this.statusBar.command = "scholarPreview.openSidepanePreview";
     this.statusBar.text = "Notebook Preview: Open Preview Beside";
     this.statusBar.show();
 
@@ -105,7 +105,7 @@ export class NotebookPreviewViewProvider {
     }
 
     this.panel = vscode.window.createWebviewPanel(
-      "notebookPreview.editor",
+      "scholarPreview.editor",
       this.getPanelTitle(),
       {
         viewColumn: vscode.ViewColumn.Beside,
@@ -215,7 +215,7 @@ export class NotebookPreviewViewProvider {
     this.followActiveCell = !this.followActiveCell;
     void vscode.workspace
       .getConfiguration()
-      .update("notebookPreview.followActiveCell", this.followActiveCell, vscode.ConfigurationTarget.Global);
+      .update("scholarPreview.followActiveCell", this.followActiveCell, vscode.ConfigurationTarget.Global);
 
     this.postMessage({ type: "setConfig", followActiveCell: this.followActiveCell });
   }

@@ -339,21 +339,24 @@ function renderMarkdownCell(source) {
       continue;
     }
 
-    // ── Block figure  ![alt](src){#fig-label} ──
-    const blockFig = /^!\[([^\]]*)\]\(([^)]+?)\)(?:\{#(fig-[a-z0-9_-]+)\})?$/.exec(line.trim());
+    // ── Block figure  ![alt](src){#fig-label} or ![alt](src){#fig-label width=80%} ──
+    const blockFig = /^!\[([^\]]*)\]\(([^)]+?)\)(?:\{([^}]*)\})?$/.exec(line.trim());
     if (blockFig) {
       flushParagraph(); flushList(); flushBlockquote(); flushTable();
       const alt      = blockFig[1];
       const rawSrc   = blockFig[2];
-      const figLabel = blockFig[3] || null;
+      const attrStr  = blockFig[3] || "";
+      const figLabel = /(?:^|\s)#(fig-[a-z0-9_-]+)/.exec(attrStr)?.[1] || null;
+      const widthVal = /(?:^|\s)width\s*=\s*["']?([^"'\s}]+)/.exec(attrStr)?.[1] || null;
       const resolvedSrc = resolveImageSrc(escapeHtml(rawSrc));
+      const imgStyle = widthVal ? ` style="width:${escapeHtml(widthVal)}"` : "";
       if (resolvedSrc) {
         if (alt) {
           const idAttr = figLabel ? ` id="${figLabel}" data-fig-label="${figLabel}"` : "";
           const caption = `<figcaption><strong>Figure <span class="fig-number"></span>.</strong> ${escapeHtml(alt)}</figcaption>`;
-          blocks.push(`<figure class="md-figure" role="group"${idAttr}><img class="md-image" src="${resolvedSrc}" alt="${escapeHtml(alt)}" />${caption}</figure>`);
+          blocks.push(`<figure class="md-figure" role="group"${idAttr}><img class="md-image" src="${resolvedSrc}" alt="${escapeHtml(alt)}"${imgStyle} />${caption}</figure>`);
         } else {
-          blocks.push(`<figure class="md-figure-decorative" role="presentation"><img class="md-image" src="${resolvedSrc}" alt="" /></figure>`);
+          blocks.push(`<figure class="md-figure-decorative" role="presentation"><img class="md-image" src="${resolvedSrc}" alt=""${imgStyle} /></figure>`);
         }
       } else {
         blocks.push(`<p>${escapeHtml(`![${alt}](${rawSrc})`)}</p>`);

@@ -11,13 +11,13 @@ export interface CitationRef {
   key: string;
 }
 
-/** Scan all markdown cells in a snapshot for @arxiv:ID and @doi:ID citations. */
+/** Scan markdown cells in a snapshot for @arxiv:ID and @doi:ID citations. */
 export function collectCitationKeys(snapshot: NotebookSnapshot): CitationRef[] {
   const seen = new Set<string>();
   const result: CitationRef[] = [];
   for (const id of snapshot.cellOrder) {
     const cell = snapshot.cells[id];
-    if (!cell) { continue; }
+    if (!cell || cell.kind !== "markdown") { continue; }  // only scan markdown
     for (const m of cell.source.matchAll(/@(arxiv|doi):([^\s,;)\]"]+)/g)) {
       const type = m[1] as "arxiv" | "doi";
       const rawId = m[2];

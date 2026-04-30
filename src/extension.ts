@@ -10,25 +10,25 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(typstPanel);
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("notebookPreview.openSidepanePreview", async () => {
+    vscode.commands.registerCommand("scholarPreview.openSidepanePreview", async () => {
       await provider.open();
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("notebookPreview.refreshPreview", () => {
+    vscode.commands.registerCommand("scholarPreview.refreshPreview", () => {
       provider.refresh();
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("notebookPreview.toggleFollowActiveCell", () => {
+    vscode.commands.registerCommand("scholarPreview.toggleFollowActiveCell", () => {
       provider.toggleFollowActiveCell();
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("notebookPreview.openTypstPreview", () => {
+    vscode.commands.registerCommand("scholarPreview.openTypstPreview", () => {
       typstPanel.open();
     })
   );

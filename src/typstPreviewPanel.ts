@@ -45,7 +45,7 @@ export class TypstPreviewPanel {
   open(): void {
     if (this.panel) {
       this.panel.reveal(vscode.ViewColumn.Beside, true);
-      this.writeDocument();
+      void this.writeDocument();
       return;
     }
 
@@ -55,7 +55,7 @@ export class TypstPreviewPanel {
     this.imageCache = new Map();
 
     this.panel = vscode.window.createWebviewPanel(
-      "notebookPreview.typst",
+      "scholarPreview.typst",
       "Typst Preview",
       { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
       {

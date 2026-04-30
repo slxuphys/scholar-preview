@@ -1,7 +1,7 @@
 {
-  "name": "notebook-sidepane-preview",
-  "displayName": "Notebook Preview",
-  "description": "Live notebook preview that opens in a side editor tab with incremental updates.",
+  "name": "scholar-preview",
+  "displayName": "Scholar Preview",
+  "description": "Live notebook preview with Typst export, citation auto-fetch (DOI/arXiv), cross-references, and bibliography generation.",
   "version": "0.0.1",
   "publisher": "local",
   "engines": {
@@ -17,68 +17,68 @@
   "contributes": {
     "commands": [
       {
-        "command": "notebookPreview.openSidepanePreview",
-        "category": "Notebook Preview",
-        "title": "Notebook Preview: Open Preview Beside"
+        "command": "scholarPreview.openSidepanePreview",
+        "category": "Scholar Preview",
+        "title": "Open HTML Preview"
       },
       {
-        "command": "notebookPreview.toggleFollowActiveCell",
-        "category": "Notebook Preview",
-        "title": "Notebook Preview: Toggle Follow Active Cell"
+        "command": "scholarPreview.toggleFollowActiveCell",
+        "category": "Scholar Preview",
+        "title": "Toggle Follow Active Cell"
       },
       {
-        "command": "notebookPreview.refreshPreview",
-        "category": "Notebook Preview",
-        "title": "Notebook Preview: Refresh Preview"
+        "command": "scholarPreview.refreshPreview",
+        "category": "Scholar Preview",
+        "title": "Refresh Preview"
       },
       {
-        "command": "notebookPreview.openTypstPreview",
-        "category": "Notebook Preview",
-        "title": "Notebook Preview: Open Typst Paged Preview"
+        "command": "scholarPreview.openTypstPreview",
+        "category": "Scholar Preview",
+        "title": "Open Typst Preview"
       }
     ],
     "menus": {
       "commandPalette": [
         {
-          "command": "notebookPreview.openSidepanePreview"
+          "command": "scholarPreview.openSidepanePreview"
         },
         {
-          "command": "notebookPreview.toggleFollowActiveCell"
+          "command": "scholarPreview.toggleFollowActiveCell"
         },
         {
-          "command": "notebookPreview.refreshPreview"
+          "command": "scholarPreview.refreshPreview"
         },
         {
-          "command": "notebookPreview.openTypstPreview"
+          "command": "scholarPreview.openTypstPreview"
         }
       ],
       "editor/title": [
         {
-          "command": "notebookPreview.openSidepanePreview",
+          "command": "scholarPreview.openSidepanePreview",
           "group": "navigation@10",
           "when": "editorLangId == markdown"
         }
       ],
       "notebook/title": [
         {
-          "command": "notebookPreview.openSidepanePreview",
+          "command": "scholarPreview.openSidepanePreview",
           "group": "navigation@10"
         },
         {
-          "command": "notebookPreview.openTypstPreview",
+          "command": "scholarPreview.openTypstPreview",
           "group": "navigation@11"
         }
       ]
     },
     "configuration": {
-      "title": "Notebook Preview",
+      "title": "Scholar Preview",
       "properties": {
-        "notebookPreview.followActiveCell": {
+        "scholarPreview.followActiveCell": {
           "type": "boolean",
           "default": true,
           "description": "Auto-scroll the preview to the active notebook cell."
         },
-        "notebookPreview.math.renderer": {
+        "scholarPreview.math.renderer": {
           "type": "string",
           "enum": [
             "katex",
@@ -87,7 +87,7 @@
           "default": "katex",
           "description": "Math renderer used in preview markdown cells."
         },
-        "notebookPreview.math.katexTrust": {
+        "scholarPreview.math.katexTrust": {
           "type": "boolean",
           "default": false,
           "description": "Enable trusted KaTeX rendering features. Keep disabled unless required."

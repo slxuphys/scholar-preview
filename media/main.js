@@ -422,8 +422,9 @@ function parseFigureDirectives(source) {
   for (const line of String(source || "").split(/\r?\n/)) {
     const trimmed = line.trim();
     const capMatch = /^#\|\s*fig-cap\s*:\s*(.+)$/i.exec(trimmed);
-    if (capMatch) { cap = capMatch[1].trim(); continue; }
-    const labelMatch = /^#\|\s*fig-label\s*:\s*(fig-[a-z0-9_-]+)\s*$/i.exec(trimmed);
+    if (capMatch) { cap = capMatch[1].trim().replace(/^["']|["']$/g, ""); continue; }
+    // Accept both "label: fig-*" and "fig-label: fig-*" (consistent with Typst side)
+    const labelMatch = /^#\|\s*(?:fig-)?label\s*:\s*(fig-[a-z0-9_-]+)\s*$/i.exec(trimmed);
     if (labelMatch) { label = labelMatch[1]; }
   }
   return { cap, label };
@@ -455,12 +456,12 @@ function shouldRenderCodeSource(cell) {
 }
 
 function getEchoDirective(source) {
-  // Scan all lines for a #| echo: on/off directive (Quarto allows directives
-  // anywhere in the cell, not just at the top).
+  // Scan all lines for a #| echo: on/off/true/false directive.
   for (const line of String(source || "").split(/\r?\n/)) {
-    const match = /^#\|\s*echo\s*:\s*(on|off)\s*$/i.exec(line.trim());
+    const match = /^#\|\s*echo\s*:\s*(on|off|true|false)\s*$/i.exec(line.trim());
     if (match) {
-      return match[1].toLowerCase();
+      const v = match[1].toLowerCase();
+      return (v === "on" || v === "true") ? "on" : "off";
     }
   }
   return undefined;
@@ -660,7 +661,7 @@ function parseFrontMatter(source) {
   const closeIdx = source.indexOf("\n---", afterOpen);
   if (closeIdx < 0) { return null; }
   const yamlBlock = source.slice(afterOpen + 1, closeIdx);
-  const rest = source.slice(closeIdx + 4); // skip \n---
+  const rest = source.slice(closeIdx + 4).replace(/^\n/, ""); // skip \n--- and leading newline
   const meta = {};
   for (const line of yamlBlock.split(/\r?\n/)) {
     const m = /^([\w-]+)\s*:\s*(.+)$/.exec(line.trim());

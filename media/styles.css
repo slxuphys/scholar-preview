@@ -286,10 +286,7 @@ figcaption {
 .cite-ref {
   color: var(--accent);
   text-decoration: none;
-  font-size: 0.82em;
-  vertical-align: super;
-  line-height: 0;
-  font-family: "SFMono-Regular", Consolas, monospace;
+  /* font-family: "SFMono-Regular", Consolas, monospace; */
 }
 
 .cite-ref:hover {

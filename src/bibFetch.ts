@@ -24,12 +24,15 @@ export function bibKeyForArxiv(id: string): string {
 }
 
 /** Fetch a remote URL as a raw Buffer (follows redirects). Handles both http and https. */
-export function httpsGetBuffer(url: string): Promise<Buffer> {
+export function httpsGetBuffer(url: string, timeoutMs = 15000): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const mod: typeof https = url.startsWith("http://") ? (http as unknown as typeof https) : https;
-    mod.get(url, { headers: { "User-Agent": "vscode-notebook-preview/1.0" } }, (res: http.IncomingMessage) => {
+    const req = mod.get(url, { headers: { "User-Agent": "vscode-notebook-preview/1.0" } }, (res: http.IncomingMessage) => {
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        resolve(httpsGetBuffer(res.headers.location));
+        // Resolve relative redirects against the original URL
+        const location = res.headers.location;
+        const next = location.startsWith("http") ? location : new URL(location, url).href;
+        resolve(httpsGetBuffer(next, timeoutMs));
         return;
       }
       if (res.statusCode && res.statusCode >= 400) {
@@ -41,14 +44,17 @@ export function httpsGetBuffer(url: string): Promise<Buffer> {
       res.on("end", () => resolve(Buffer.concat(chunks)));
       res.on("error", reject);
     }).on("error", reject);
+    req.setTimeout(timeoutMs, () => { req.destroy(new Error(`Timeout fetching ${url}`)); });
   });
 }
 
-export function httpsGet(url: string): Promise<string> {
+export function httpsGet(url: string, timeoutMs = 15000): Promise<string> {
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { "User-Agent": "vscode-notebook-preview/1.0" } }, (res: http.IncomingMessage) => {
+    const req = https.get(url, { headers: { "User-Agent": "vscode-notebook-preview/1.0" } }, (res: http.IncomingMessage) => {
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        resolve(httpsGet(res.headers.location));
+        const location = res.headers.location;
+        const next = location.startsWith("http") ? location : new URL(location, url).href;
+        resolve(httpsGet(next, timeoutMs));
         return;
       }
       if (res.statusCode && res.statusCode >= 400) {
@@ -60,6 +66,7 @@ export function httpsGet(url: string): Promise<string> {
       res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
       res.on("error", reject);
     }).on("error", reject);
+    req.setTimeout(timeoutMs, () => { req.destroy(new Error(`Timeout fetching ${url}`)); });
   });
 }
 
