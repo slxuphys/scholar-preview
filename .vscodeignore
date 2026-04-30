@@ -1,6 +1,14 @@
 .vscode/**
 .git/**
+.gitignore
+node_modules/**
+images/icon.svg
 out/test/**
 src/**
 **/*.ts
 **/*.map
+tsconfig.json
+**/*.md
+!README.md
+!CHANGELOG.md
+crossref_feature_plan.md
